@@ -49,6 +49,12 @@ while(i < items.length)
 
 This compiler workaround applies to imported AS2, not the JavaScript font helper.
 
+## External class casts can become function calls
+
+During the hover-card investigation, the original Scaleform displayed the same photo successfully while our override crashed. Comparing P-code found that JPEXS 23.0.1 compiled `com.rockstargames.ui.media.ImageLoaderMC(attachMovie(...))` as a class-function `CallMethod`, whereas the original used `CastOp`. This external class was not defined in the shared movie being compiled. The source/decompiled JavaScript harness had hidden the difference by mocking the cast as an identity function.
+
+For a symbol whose class is already registered, keep the clip returned by `attachMovie` directly. Do not add a replacement constructor or another copy of the shared class. Keep real `new Class()` construction where an object actually needs constructing. Compare P-code for external type casts and add a build guard for the failure, not just a source-level mock. The hover-card build now rejects references to the unresolved `ImageLoaderMC` class in the edited component. The user confirmed successful image loading in-game after this correction (0.6.4).
+
 ## Fonts: embed and verify
 
 Setting `TextFormat.font`, enabling `embedFonts`, installing a Windows font, or copying a TTF into the resource does not embed that font in the movie.

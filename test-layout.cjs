@@ -346,10 +346,15 @@ function column() {
   const viewContainer = {};
   return { details: {}, model: { getCurrentView: () => ({ viewContainer }) }, scrollBase: {}, updateScroll() {} };
 }
-const page = { column0: column(), column1: column(), column2: {}, inFullscreenMode: true, dx: 0, dy: 430 };
+const page = { column0: column(), column1: column(), column2: {
+  SET_MAP_CARD_LAYOUT(...args) { this.layoutArgs = args; }
+}, inFullscreenMode: true, dx: 0, dy: 430 };
 const setDisplayConfig = method(pageSource, 'setDisplayConfig');
 for (const [width, height, top, left] of [[1920, 1080, 0.02, 0.02], [3440, 1440, 0.05, 0.05], [1280, 720, 0, 0]]) {
   setDisplayConfig.call(page, width, height, top, 1 - top, left, 1 - left, true);
+  assert.equal(page.column2._x, Math.round(left * 1280));
+  assert.equal(page.column2._y, 0, 'Card component owns vertical centering');
+  assert.deepEqual(page.column2.layoutArgs, [true, Math.round(top * 720), Math.round((1 - top) * 720)]);
   for (const mapColumn of [page.column0, page.column1]) {
     assert.equal(mapColumn.details._x, Math.round(left * 1280));
     assert.equal(mapColumn.details._y, Math.round(top * 720), 'Area title follows the top safe margin');
@@ -361,4 +366,5 @@ page.inFullscreenMode = false;
 setDisplayConfig.call(page, 1920, 1080, 0.02, 0.98, 0.02, 0.98, true);
 assert.equal(page.column1.details._y, page.dy, 'Preserve the normal page layout when leaving fullscreen');
 assert.equal(page.column1.model.getCurrentView().viewContainer._x, 868);
+assert.equal(page.column2.layoutArgs[0], false, 'Leaving fullscreen restores page positioning');
 console.log('PASS: grouping, native IDs, navigation, layout, cycling, You, dynamic tags, heading formatting, live area title, hidden distance scale, safe-zone placement.');

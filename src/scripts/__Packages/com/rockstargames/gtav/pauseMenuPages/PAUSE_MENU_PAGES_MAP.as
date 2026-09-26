@@ -46,7 +46,7 @@ class com.rockstargames.gtav.pauseMenuPages.PAUSE_MENU_PAGES_MAP extends com.roc
          _loc5_._x = _loc4_._x = _loc9_;
          _loc5_._y = _loc4_._y = _loc7_;
          this.column2._x = _loc6_;
-         this.column2._y = _loc7_;
+         this.column2._y = 0;
       }
       else
       {
@@ -56,6 +56,7 @@ class com.rockstargames.gtav.pauseMenuPages.PAUSE_MENU_PAGES_MAP extends com.roc
          _loc5_._y = _loc4_._y = 0;
          this.column2._x = this.column2._y = 0;
       }
+      this.column2.SET_MAP_CARD_LAYOUT(this.inFullscreenMode,Math.round(_safeTopPercent * 720),Math.round(_safeBottomPercent * 720));
       _loc2_.scrollBase._visible = false;
       _loc2_.updateScroll();
    }

@@ -53,7 +53,40 @@ Fully restart FiveM and reconnect to unload the previously cached frontend movie
 
 This pass implements the grouped panel and player label from the reference, without a search field or checkbox controls. Existing native visibility callbacks remain available.
 
-The area title and distance ruler are part of the same `pause_menu_pages_map.gfx`; no additional streamed movie is needed. `PAUSE_MENU_PAGES_MAP.setDisplayConfig()` anchors the title to the top safe margin in fullscreen map mode. `PAUSE_MENU_MAP.SET_TITLE()` styles the live label with embedded Figtree Bold at size 32 (Scaleform units), and both title and distance callbacks keep the ruler hidden. The title is the game's area name, not a hardcoded name or a blip category.
+The area title and distance ruler are part of `pause_menu_pages_map.gfx`. `PAUSE_MENU_PAGES_MAP.setDisplayConfig()` anchors the title to the top safe margin in fullscreen map mode. `PAUSE_MENU_MAP.SET_TITLE()` styles the live label with embedded Figtree Bold at size 32 (Scaleform units), and both title and distance callbacks keep the ruler hidden. The title is the game's area name, not a hardcoded name or a blip category.
+
+### Blip hover card
+
+The companion `pause_menu_shared_components_03.gfx` styles the map's existing hover-details card with a white Figtree title bar, dark body, fine row separators and condensed GTA detail text. The map enables this style explicitly; other consumers of the shared component retain their native layout.
+
+<a href="docs/images/hover-card-placeholder.png"><img src="docs/images/hover-card-placeholder.png" alt="Blip hover card with a placeholder image, cash amount and green dollar icon, author, wrapping description and header row" width="360"></a>
+<a href="docs/images/hover-card-photo.png"><img src="docs/images/hover-card-photo.png" alt="Blip hover card displaying a custom location photo with the cash amount and dollar icon over the image" width="360"></a>
+
+*In-game hover cards: placeholder on the left, custom location photo on the right. Click either image for full resolution.*
+
+In fullscreen map mode the card sits at the left safe margin, vertically centered according to its current height. Its overall scale is 85% of the original restyle. It reserves 68 Scaleform units below the top safe margin for the area heading and 44 above the bottom safe margin for controls. Oversized cards scale down further to fit that space. Leaving fullscreen restores the normal map-page placement while keeping the smaller size.
+
+The photo area always remains: a placeholder is shown when there is no supplied image or while one is loading. A loaded texture replaces it in the same 288-by-160-unit area, without moving the card. Supplied images, verified status, RP/cash/AP/CM values, detail rows, icons and completion marks remain supported. Long headings and paired labels are ellipsized to fit. See the [hover-card source map](docs/blip-hover-card.md) for the underlying AS2 classes and routing.
+
+Rewards are right-aligned over the photo. Cash uses GTA's original green dollar icon beside the amount, with no background behind it; other rewards retain their dark backing. Missing values and their icons are hidden. Verified status also stays over the photo. Neither adds extra rows below it.
+
+#### Populating the card from a custom script
+
+**Custom blip details are supported through GTA's existing frontend Scaleform API.** Use a compatible client script, such as the separate `aj_blipinfo` resource used for these screenshots, to detect the hovered blip and supply its content. `aj-map-legend` provides the styling; it does not bundle that Lua helper, register blip details, capture photos, or generate descriptions from `[CATEGORY]` tags.
+
+The script calls [`BeginScaleformMovieMethodOnFrontend`](https://github.com/citizenfx/natives/blob/master/GRAPHICS/BeginScaleformMovieMethodOnFrontend.md), pushes the method's parameters, then calls `EndScaleformMovieMethod`. The existing methods route into the styled card:
+
+| Frontend method | Card content or action |
+| --- | --- |
+| `SET_COLUMN_TITLE` | Title, verified status, texture dictionary/name, and reward values such as RP and cash |
+| `SET_DATA_SLOT` | Ordered detail rows: paired labels, author/name, headers, icons/checkmarks, or wrapping descriptions (row type `5`) |
+| `DISPLAY_DATA_SLOT` | Displays the populated rows |
+| `SHOW_COLUMN` | Shows or hides the card |
+| `SET_DATA_SLOT_EMPTY` | Clears the previous rows and the loaded image reference |
+
+Use logical frontend column selector **`1`** for this map card; its internal AS2 member name `column2` is not the selector. Preserve the native argument order and types described in the [frontend routing notes](docs/blip-hover-card.md#frontend-call-routing). The calling script handles frontend readiness/control, changes of hovered blip, texture loading and release, and cleanup. Photos are supplied as a loaded texture dictionary and texture name, not a file path or web URL.
+
+If using `aj_blipinfo`, its `SetBlipInfoTitle`, `SetBlipInfoImage`, `SetBlipInfoEconomy`, and `AddBlipInfo*` exports wrap these calls. Pass `nil` or `''` for omitted RP/cash; the helper sends the native missing-value representation. Other scripts can use the same frontend methods directly without depending on `aj_blipinfo`.
 
 ### Fonts
 
@@ -215,6 +248,8 @@ There is no automatic watcher for other resources' config files. Saving a new na
 
 Before another Scaleform edit, read the [Scaleform editing notes](docs/scaleform-editing-notes.md): the failures we encountered, accessor/compiler quirks, font embedding, native data contracts, and the build-and-verify workflow.
 
+For the card shown when hovering a blip, see the [hover-card source map](docs/blip-hover-card.md) for its shared GFX, classes, frontend routing and existing Lua helper.
+
 Original extracted read-only with the installed CodeWalker Core library from:
 
 ```text
@@ -222,23 +257,27 @@ X:\SteamLibrary\steamapps\common\Grand Theft Auto V Enhanced\update\update.rpf
   x64\data\cdimages\scaleform_generic.rpf\pause_menu_pages_map.gfx
 ```
 
-The repository keeps one set of source files and one exported movie:
+The repository keeps editable sources and two companion exported movies:
 
 ```text
 src/
   base/pause_menu_pages_map.gfx   # Original movie used as the build template
+  base/pause_menu_shared_components_03.gfx # Original shared-card template
   fonts/                         # Figtree Bold TTF, license, provenance
   embed-font.js                  # Embed and verify local GFx font definitions
   scripts/__Packages/            # Editable ActionScript classes
+  shared-scripts/__Packages/     # Map-scoped hover-card component changes
 stream_enhanced/
   pause_menu_pages_map.gfx        # Built movie loaded by FiveM Enhanced
+  pause_menu_shared_components_03.gfx # Built hover-card companion
 docs/images/                     # Current README screenshot
 build.ps1                        # Build and verification
 test-layout.cjs                  # Source and compiled-code checks
+test-hover-card.cjs              # Source and compiled hover-card layout checks
 fxmanifest.lua                   # FiveM resource manifest
 ```
 
-Keep `src/base/pause_menu_pages_map.gfx`: it supplies the original symbols, shared imports, and untouched scripts when JPEXS imports the edited classes. It is a required build input, not a version snapshot. The output stays in `stream_enhanced` because this resource targets Enhanced. Git history replaces local backup/version folders.
+Keep both movies under `src/base`: they supply the original symbols, shared imports, and untouched scripts when JPEXS imports the edited classes. They are required build inputs, not version snapshots. The shared template comes from `update/update.rpf/x64/data/cdimages/scaleform_frontend.rpf`. The outputs stay in `stream_enhanced` because this resource targets Enhanced. Git history replaces local backup/version folders.
 
 The five edited classes under `src/scripts` are:
 
@@ -248,7 +287,9 @@ The five edited classes under `src/scripts` are:
 - `PauseMenuMapView.as`: group rules, display order, headings, scrolling and native-index mapping.
 - `PauseMenuMapModel.as`: native slot updates routed through the grouped view.
 
-Run `build.ps1` in PowerShell using **Java 8 (with Nashorn)**, **JPEXS 23.0.1**, and Node. The font helper uses Java 8's built-in JavaScript engine to call the JPEXS font API; a newer Java without Nashorn will not run it. `-JpexsJar` supports a different JPEXS installation path. Only `stream_enhanced/pause_menu_pages_map.gfx` is streamed. This resource targets Enhanced.
+`src/shared-scripts` contains `PAUSE_MENU_FREEMODE_DETAILS.as`. Its `SET_MAP_CARD_LAYOUT()` is called by the map page; `applyMapCardStyle()` handles the card's appearance, content fitting and vertical placement. Native detail row/model/view classes remain in the original shared template.
+
+Run `build.ps1` in PowerShell using **Java 8 (with Nashorn)**, **JPEXS 23.0.1**, and Node. The font helper uses Java 8's built-in JavaScript engine to call the JPEXS font API; a newer Java without Nashorn will not run it. `-JpexsJar` supports a different JPEXS installation path. Both GFX files in `stream_enhanced` are streamed. This resource targets Enhanced.
 
 From the resource directory in PowerShell:
 
@@ -262,15 +303,17 @@ To use another JPEXS installation:
 .\build.ps1 -JpexsJar 'C:\Tools\FFDec\ffdec-cli.jar'
 ```
 
-The default JPEXS path is `C:\Program Files (x86)\FFDec\ffdec-cli.jar`; `java` and `node` must be available on PATH. The build first embeds the vendored fonts in a temporary copy of the base movie, then imports ActionScript, inspects the final font data and bytecode, and runs the behavioral checks. It is offline and does not install fonts. A successful build replaces the streamed file only after its checks pass.
+The default JPEXS path is `C:\Program Files (x86)\FFDec\ffdec-cli.jar`; `java` and `node` must be available on PATH. The build embeds Figtree Bold in temporary copies of both base movies, imports ActionScript, inspects the final font data and bytecode, and runs the behavioral checks. The helper's `shared` mode embeds the face without rebinding existing shared text fields. It is offline and does not install fonts. Neither streamed file is replaced until both candidates pass their checks.
 
 For developers, `parseLabel()` handles tags, `categoryFor()` defines fallback keywords, `groupFor()` merges/creates categories, and `rebuildOrder()` applies category precedence and sorting in `PauseMenuMapView.as`. The predefined names are initialized in the constructor and reset in `rebuildOrder()`; the rank calculation controls where custom categories and **Other** appear. Update all relevant pieces together when changing default category order. Ordinary tagged categories do not need these source edits.
 
 `parseLabel()` also returns `isNew`; `PauseMenuMapItem.updateDisplay()` draws the badge and reserves label space before measuring/truncating the name. The badge visibility is refreshed on every row update so pooled rows do not carry it onto unrelated locations.
 
-Lua can invoke exposed Scaleform methods with `BeginScaleformMovieMethod`, parameters, and `EndScaleformMovieMethod` ([Cfx guide](https://docs.fivem.net/docs/scripting-manual/using-scaleform/)). The pause menu has a dedicated `BeginScaleformMovieMethodOnFrontend` entry point ([native definition](https://github.com/citizenfx/natives/blob/master/GRAPHICS/BeginScaleformMovieMethodOnFrontend.md)). Custom calls to this nested map component need a compatible frontend routing method and in-game verification; this resource does not currently expose a custom Lua API.
+Lua can invoke exposed Scaleform methods with `BeginScaleformMovieMethod`, parameters, and `EndScaleformMovieMethod` ([Cfx guide](https://docs.fivem.net/docs/scripting-manual/using-scaleform/)). For the visible pause-map hover card, use the frontend entry point and existing routed methods documented under [Populating the card from a custom script](#populating-the-card-from-a-custom-script). This resource does not add a custom Lua API.
 
 ## Verification
+
+`test-hover-card.cjs` runs against source and decompiled shared output. It checks map-only activation, optional media/rewards, stale reward removal, long titles/labels, empty and oversized cards, safe-zone centering, and normal-page reset. The build also rejects the external `ImageLoaderMC` class call that JPEXS incorrectly generated from a cast; see the [image crash investigation](docs/blip-hover-card.md#image-crash-investigation-2026-09-26). These are logic and bytecode checks, not an emulation of native GFx rendering, clipping or input. The hover-card screenshots above show the placeholder, custom photo, cash icon and detail rows working in-game. Future changes still need an in-game check, including image switching and icon-row examples.
 
 The build runs `test-layout.cjs` twice: on the editable AS2 source, then on AS2 decompiled from the compiled candidate. Both passes execute the view's algorithms and map callbacks in a JavaScript harness. It checks category ordering, native slot identity, all selections across a 72-entry list, forward/backward wraparound, header and row bounds, live updates, cycling state persistence, player-label replacement, dynamic category tags, malformed tags, live recategorization, heading formatting, and empty/single-entry lists. It also checks changing/empty area names, reapplying title formatting, keeping the ruler hidden through title/distance updates, top-left safe-zone placement, and restoring normal page coordinates outside fullscreen. It does not emulate GFx rendering or the game's input dispatch.
 
@@ -282,4 +325,4 @@ The font helper reopens its output and verifies Figtree Bold's codes, contour co
 
 ## Rollback
 
-Use Git history to restore a previous committed revision, keeping its source, build tooling, and exported movie together. Commit source changes and the rebuilt `stream_enhanced/pause_menu_pages_map.gfx` together after verification. After deploying a restored movie, restart the resource and fully restart FiveM to unload the cached frontend movie.
+Use Git history to restore a previous committed revision, keeping its source, build tooling, and exported movies together. Commit source changes and both rebuilt GFX files together after verification. After deploying restored movies, restart the resource and fully restart FiveM to unload cached frontend movies.

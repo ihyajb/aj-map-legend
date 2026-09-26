@@ -11,11 +11,16 @@ $buildDirectory = Join-Path ([IO.Path]::GetTempPath()) ('aj-map-legend-' + [guid
 $candidate = Join-Path $buildDirectory 'pause_menu_pages_map.gfx'
 $fontBase = Join-Path $buildDirectory 'map-with-figtree.gfx'
 $fontFile = Join-Path $PSScriptRoot 'src\fonts\Figtree-Bold.ttf'
+$sharedOriginal = Join-Path $PSScriptRoot 'src\base\pause_menu_shared_components_03.gfx'
+$sharedCandidate = Join-Path $buildDirectory 'pause_menu_shared_components_03.gfx'
+$sharedFontBase = Join-Path $buildDirectory 'shared-with-figtree.gfx'
 
 & node (Join-Path $PSScriptRoot 'test-layout.cjs')
 if ($LASTEXITCODE -ne 0) {
     throw 'Grouped legend layout or selection regression check failed.'
 }
+& node (Join-Path $PSScriptRoot 'test-hover-card.cjs')
+if ($LASTEXITCODE -ne 0) { throw 'Hover-card source checks failed.' }
 
 # Isolate JPEXS preferences so builds do not change the desktop app's settings.
 $previousAppData = $env:APPDATA
@@ -110,8 +115,45 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'The compiled movie failed the grouped legend behavioral checks.'
     }
+    # Build the shared component as a companion to the map page. Its styling is
+    # enabled only by SET_MAP_CARD_LAYOUT from that page.
+    & java "-Duser.home=$buildDirectory" '-Djava.awt.headless=true' -cp $JpexsJar jdk.nashorn.tools.Shell (Join-Path $PSScriptRoot 'src\embed-font.js') -- $sharedOriginal $sharedFontBase $fontFile shared
+    if ($LASTEXITCODE -ne 0) { throw 'Hover-card font embedding failed.' }
+    & java "-Duser.home=$buildDirectory" -jar $JpexsJar -onerror abort -importScript $sharedFontBase $sharedCandidate (Join-Path $PSScriptRoot 'src\shared-scripts')
+    if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $sharedCandidate)) { throw 'Hover-card compilation failed.' }
+    $sharedXmlPath = Join-Path $buildDirectory 'shared-font-verification.xml'
+    & java "-Duser.home=$buildDirectory" -jar $JpexsJar -swf2xml $sharedCandidate $sharedXmlPath | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect hover-card fonts.' }
+    [xml]$sharedXml = Get-Content -LiteralPath $sharedXmlPath -Raw
+    $sharedFaces = @($sharedXml.swf.tags.item | Where-Object { $_.type -eq 'DefineCompactedFont' -and $_.fonts.item.fontName -eq 'Figtree' })
+    if ($sharedFaces.Count -ne 1) { throw 'Hover card is missing its local Figtree face.' }
+    $sharedFont = $sharedFaces[0].fonts.item
+    if (([int]$sharedFont.flags -band 3) -ne 2 -or @($sharedFont.glyphInfo.item).Count -ne 407) { throw 'Hover-card font style/coverage changed.' }
+    $sharedCodes = @($sharedFont.glyphInfo.item | ForEach-Object { [int]$_.glyphCode })
+    foreach ($code in 33..126) {
+        $glyphIndex = [Array]::IndexOf($sharedCodes, $code)
+        if ($glyphIndex -lt 0 -or @($sharedFont.glyphs.item[$glyphIndex].contours.item).Count -eq 0) { throw "Missing hover-card glyph: $code" }
+    }
+    $sharedPcode = Join-Path $buildDirectory 'shared-pcode'
+    & java "-Duser.home=$buildDirectory" -jar $JpexsJar -format script:pcode -export script $sharedPcode $sharedCandidate | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect hover-card bytecode.' }
+    $sharedCode = [IO.File]::ReadAllText((Join-Path $sharedPcode 'scripts\__Packages\com\rockstargames\gtav\pauseMenu\pauseComponents\PAUSE_MENU_FREEMODE_DETAILS.pcode'))
+    if ([regex]::Matches($sharedCode, '"__set__data"\r?\nCallMethod').Count -ne 1) { throw 'Hover-card title lost its explicit accessor.' }
+    # This external type is absent from the shared movie. JPEXS 23 compiles its
+    # apparent cast as CallMethod, invoking the class rather than casting a clip.
+    if ($sharedCode -match '"ImageLoaderMC"\r?\nCallMethod') { throw 'ImageLoaderMC cast became a class-function call; use the registered attachMovie instance directly.' }
+    if ($sharedCode -match '"ImageLoaderMC"') { throw 'Hover card must not resolve or invoke the external ImageLoaderMC class.' }
+    Write-Output 'PASS: hover-card bytecode uses the registered image clip without an external class call.'
+    $sharedRoundtrip = Join-Path $buildDirectory 'shared-roundtrip'
+    & java "-Duser.home=$buildDirectory" -jar $JpexsJar -export script $sharedRoundtrip $sharedCandidate | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot decompile hover-card candidate.' }
+    & node (Join-Path $PSScriptRoot 'test-hover-card.cjs') (Join-Path $sharedRoundtrip 'scripts')
+    if ($LASTEXITCODE -ne 0) { throw 'Compiled hover-card checks failed.' }
+    # Publish neither candidate until both have passed their checks.
     Copy-Item -LiteralPath $candidate -Destination $output -Force
+    Copy-Item -LiteralPath $sharedCandidate -Destination (Join-Path $PSScriptRoot 'stream_enhanced\pause_menu_shared_components_03.gfx') -Force
     Write-Output "Built $output"
+    Write-Output 'Built companion pause_menu_shared_components_03.gfx'
 }
 finally {
     $env:APPDATA = $previousAppData

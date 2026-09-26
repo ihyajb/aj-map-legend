@@ -23,7 +23,8 @@ function readMovie(file) {
     finally { input.close(); }
 }
 
-requireCondition(arguments.length === 3, 'Expected input.gfx output.gfx Figtree-Bold.ttf');
+requireCondition(arguments.length === 3 || (arguments.length === 4 && arguments[3] === 'shared'), 'Expected input.gfx output.gfx Figtree-Bold.ttf [shared]');
+var bindAreaTitle = arguments.length === 3;
 var movie = readMovie(arguments[0]);
 var originalTagCount = movie.getTags().size();
 function embedFace(file, bold) {
@@ -70,7 +71,7 @@ var boldFace = embedFace(arguments[2], true);
 var bindings = [];
 for (var index = 0; index < movie.getTags().size(); index++) {
     var tag = movie.getTags().get(index);
-    if (tag instanceof EditText && tag.characterID === 139 && tag.fontId === 130) {
+    if (bindAreaTitle && tag instanceof EditText && tag.characterID === 139 && tag.fontId === 130) {
         tag.fontId = boldFace.tag.fontId;
         tag.hasFont = true;
         tag.useOutlines = true;
@@ -78,7 +79,7 @@ for (var index = 0; index < movie.getTags().size(); index++) {
         bindings.push({id: tag.characterID, fontId: tag.fontId});
     }
 }
-requireCondition(bindings.some(function(binding) { return binding.id === 139; }), 'Base locationTF changed');
+requireCondition(!bindAreaTitle || bindings.some(function(binding) { return binding.id === 139; }), 'Base locationTF changed');
 movie.updateCharacters();
 var output = new Output(arguments[1]);
 try { movie.saveTo(output); }
