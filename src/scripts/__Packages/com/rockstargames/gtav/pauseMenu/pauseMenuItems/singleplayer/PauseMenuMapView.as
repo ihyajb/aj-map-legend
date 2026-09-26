@@ -53,6 +53,21 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
    {
       var original = this.trimLabel(String(value).split("<C>").join("").split("</C>").join(""));
       var label = original;
+      var isNew = false;
+      var marker = label.toUpperCase().indexOf("[NEW]");
+      while(marker >= 0)
+      {
+         var before = this.trimLabel(label.substring(0,marker));
+         var after = this.trimLabel(label.substring(marker + 5));
+         label = before + (before.length > 0 && after.length > 0 ? " " : "") + after;
+         isNew = true;
+         marker = label.toUpperCase().indexOf("[NEW]");
+      }
+      if(label.length == 0)
+      {
+         return {category:undefined,label:original,isNew:false};
+      }
+      var untagged = label;
       // GTA may prepend its own category, e.g. Garages: [VEHICLES] Hayes Depot.
       if(label.charAt(0) != "[")
       {
@@ -71,11 +86,11 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
             var name = this.trimLabel(label.substring(end + 1));
             if(category.length > 0 && category.indexOf("[") < 0 && name.length > 0)
             {
-               return {category:category,label:name};
+               return {category:category,label:name,isNew:isNew};
             }
          }
       }
-      return {category:undefined,label:original};
+      return {category:undefined,label:untagged,isNew:isNew};
    }
    function groupFor(category)
    {

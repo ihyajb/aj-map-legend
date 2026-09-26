@@ -27,6 +27,7 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapI
    var __get__columnID;
    var _xmouse;
    var rowRuleMC;
+   var newBadgeMC;
    var createEmptyMovieClip;
    var _showBlips = true;
    var showBlipIndex = 12;
@@ -121,6 +122,39 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapI
          this.valueIndicatorMC._x = 300 - 42 - this.valueIndicatorMC._width - 12;
       }
       var textWidth = hasCounter ? Math.max(40,this.valueIndicatorMC._x - 10) : 240;
+      var isNew = this.storeScope != undefined && this.storeScope.parseLabel(rowData[0]).isNew;
+      if(this.newBadgeMC != undefined)
+      {
+         this.newBadgeMC._visible = isNew;
+      }
+      if(isNew)
+      {
+         if(this.newBadgeMC == undefined)
+         {
+            this.newBadgeMC = this.createEmptyMovieClip("newBadgeMC",9001);
+            this.newBadgeMC.beginFill(16107612,100);
+            this.newBadgeMC.moveTo(0,0);
+            this.newBadgeMC.lineTo(30,0);
+            this.newBadgeMC.lineTo(30,16);
+            this.newBadgeMC.lineTo(0,16);
+            this.newBadgeMC.endFill();
+            this.newBadgeMC.createTextField("badgeTF",1,0,-1,30,20);
+            var badgeText = this.newBadgeMC.badgeTF;
+            badgeText.text = "NEW";
+            badgeText.selectable = false;
+            badgeText.embedFonts = true;
+            var badgeFormat = new TextFormat("$Font2_cond_NOT_GAMERNAME",12,1449503);
+            badgeFormat.align = "center";
+            badgeFormat.bold = false;
+            badgeFormat.italic = false;
+            badgeText.setNewTextFormat(badgeFormat);
+            badgeText.setTextFormat(badgeFormat);
+         }
+         this.newBadgeMC._visible = true;
+         this.newBadgeMC._x = hasCounter ? this.labelMC._x + this.valueIndicatorMC._x - 36 : 258;
+         this.newBadgeMC._y = 8;
+         textWidth = Math.max(40,this.newBadgeMC._x - this.labelMC._x - 6);
+      }
       var fullLabel = this.itemTextLeft.text;
       while(this.itemTextLeft.textWidth > textWidth && labelFormat.size > 16)
       {

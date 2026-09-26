@@ -155,6 +155,34 @@ for (const raw of ['[] Depot', '[  ] Depot', '[VEHICLES Depot', '[VEHICLES]', 'D
   assert.equal(view.parseLabel(raw).category, undefined);
   assert.equal(view.parseLabel(raw).label, raw, 'Malformed tags must not delete the name');
 }
+for (const [raw, category, label] of [
+  ['[CUSTOM2] [NEW] Test Blip', 'CUSTOM2', 'Test Blip'],
+  ['[NEW] [CUSTOM2] Test Blip', 'CUSTOM2', 'Test Blip'],
+  ['Garages: [CUSTOM2] [new] Test Blip', 'CUSTOM2', 'Test Blip'],
+  ['<C>[CUSTOM2] Test [NEW] Blip</C>', 'CUSTOM2', 'Test Blip'],
+  ['[CUSTOM2] Test Blip [NEW]', 'CUSTOM2', 'Test Blip'],
+  ['[NEW] [NEW] Bank', undefined, 'Bank'],
+  ['[CUSTOM2][NEW]Test Blip', 'CUSTOM2', 'Test Blip']
+]) {
+  const parsed = view.parseLabel(raw);
+  assert.equal(parsed.category, category);
+  assert.equal(parsed.label, label);
+  assert.equal(parsed.isNew, true);
+  assert.equal(displayLabel.call(labelFixture('radar_test', raw)), label);
+}
+for (const raw of ['[NEW]', '[NEW] [new]', 'New Store', '[NEWISH] Test Blip', 'Test [NEW']) {
+  assert.equal(view.parseLabel(raw).isNew, false, 'Only complete tags on nonempty names set the badge');
+}
+assert.equal(view.parseLabel('[CUSTOM2] [PUBLIC] Test Blip').label, '[PUBLIC] Test Blip');
+const taggedView = new GroupedView();
+taggedView.addItem(0, record(0, '[CUSTOM2] Zeta'));
+taggedView.addItem(1, record(1, '[CUSTOM2] [NEW] Alpha'));
+taggedView.addItem(2, record(2, '[NEW] Bank'));
+taggedView.displayView();
+assert.equal(taggedView.order[taggedView.positions[2]].category, 'SHOPS & SERVICES');
+assert.ok(taggedView.positions[1] < taggedView.positions[0], 'NEW does not affect alphabetical sorting');
+assert.equal(taggedView.dataList[1][6], '[CUSTOM2] [NEW] Alpha', 'NEW parsing preserves native slot data');
+assert.ok(!taggedView.groupNames.includes('NEW'), 'NEW is a reserved badge, not a category');
 view.addItem(72, record(72, '[VEHICLES] Hayes Depot'));
 view.addItem(73, record(73, '[MEDICAL] Hospital'));
 view.addItem(74, record(74, '[medical] Clinic'));
@@ -290,6 +318,29 @@ for (const count of [1, 39, 1000]) {
   } else {
     assert.ok(row.itemTextLeft.textWidth <= 240);
   }
+  row.storeScope = view;
+  row.displayLabel = () => displayLabel.call(row);
+  rowData[0] = '[CUSTOM2] [NEW] A very long location name with extra details';
+  for (const highlighted of [false, true]) {
+    row._highlighted = highlighted;
+    updateRow.call(row);
+    assert.equal(row.newBadgeMC._visible, true);
+    assert.equal(row.newBadgeMC.badgeTF.formattedText, 'NEW');
+    assert.equal(row.newBadgeMC.badgeTF.format.font, '$Font2_cond_NOT_GAMERNAME');
+    assert.ok(row.labelMC._x + row.itemTextLeft.textWidth <= row.newBadgeMC._x - 6);
+    assert.ok(row.newBadgeMC._x + 30 <= (count > 1 ? row.labelMC._x + row.valueIndicatorMC._x - 6 : 288));
+    assert.ok(!row.itemTextLeft.text.includes('['), 'Metadata is not visible in row labels');
+  }
+  row._showBlips = false;
+  updateRow.call(row);
+  assert.equal(row.newBadgeMC._x, 258, 'Hidden cycling controls release their space');
+  rowData[0] = '[CUSTOM2] Test Blip';
+  updateRow.call(row);
+  assert.equal(row.newBadgeMC._visible, false, 'Reused rows must clear the previous badge');
+  assert.equal(row.itemTextLeft.text, 'Test Blip');
+  rowData[0] = '[CUSTOM2] [new] Test Blip';
+  updateRow.call(row);
+  assert.equal(row.newBadgeMC._visible, true, 'Renaming a live slot restores the badge');
 }
 function column() {
   const viewContainer = {};

@@ -4,11 +4,13 @@ An edited GTA V Enhanced Scaleform using the game's blip data and callbacks, wit
 
 For everyday use, name a blip **`[CATEGORY] Location Name`** in the resource that creates it. The legend displays **Location Name** under **CATEGORY**. If there is no valid tag, the legend chooses a category using the keyword rules below.
 
+Add **`[NEW]`** to show a small gold NEW badge: **`[CUSTOM2] [NEW] Test Blip`** displays **Test Blip** under **CUSTOM2**, with the badge beside the name.
+
 ## How it works
 
 1. Your existing resources create the actual map blips: coordinates, icons, colors, names, and native grouping.
 2. GTA sends the pause-map legend its location slots. This resource reads those slots; it does not scan or edit the other resources' configs.
-3. The legend checks the player/waypoint entries, then a `[CATEGORY]` tag, then fallback keywords.
+3. The legend extracts the `[NEW]` badge marker, checks the player/waypoint entries, then a `[CATEGORY]` tag, then fallback keywords.
 4. It builds a separate display order and draws headings above each group. The original slot IDs remain intact for selection, map navigation, and cycling grouped locations.
 
 Categories are **section headings in one scrolling list**, not clickable tabs. Up/down moves between locations and skips headings. Left/right cycles a selected location when GTA supplies multiple blips in that entry. Mouse selection still uses the original native slot ID.
@@ -34,9 +36,9 @@ Fully restart FiveM and reconnect to unload the previously cached frontend movie
 
 ## Appearance and grouping
 
-![In-game Locations panel showing You, Government and Jobs categories, colored blip icons, and location counters](docs/images/locations-panel.png)
+<a href="docs/images/map-overview.png"><img src="docs/images/map-overview.png" alt="In-game map with a Vinewood Hills area heading, grouped Locations panel, and a CUSTOM2 Test Blip carrying a gold NEW badge" width="1200"></a>
 
-*General map UI: the Locations panel with category headings and native location cycling.*
+*Current in-game UI, including the custom CUSTOM2 category and NEW badge. Click the screenshot to view it at full resolution.*
 
 - A fixed-width **Locations** panel with a white header, continuous dark rows, fine separators, and a white selected row.
 - Icons on the left; condensed GTA labels at size 18 alongside them. Long labels shrink to size 16, then ellipsize to stay inside the panel and clear the measured cycling controls.
@@ -44,13 +46,14 @@ Fully restart FiveM and reconnect to unload the previously cached frontend movie
 - Non-selectable section headings: **Government**, **Jobs**, **Vehicles**, **Shops & Services**, **Activities**, **Properties**, **Other**.
 - Entries sort alphabetically within each section. Categories without entries are omitted. A category heading repeats at the top when scrolling into the middle of that section.
 - Grouped location counters remain on the right, with the native left/right cycling behavior.
+- A gold **NEW** badge appears for names containing `[NEW]`. Labels reserve space for both the badge and cycling controls.
 - A thin scrollbar indicates list position. There is no bottom position count; the list uses the full 536-unit body, including the former footer space. One category heading and 16 rows fit at once.
 - A large white uppercase area name in Figtree Bold at the top left, aligned with the screen's safe margins. GTA still supplies the live name as you browse the map.
 - The bottom-left distance ruler and its numbers are hidden, along with the old area-name background.
 
 This pass implements the grouped panel and player label from the reference, without a search field or checkbox controls. Existing native visibility callbacks remain available.
 
-The area title and distance ruler are part of the same `pause_menu_pages_map.gfx`; no additional streamed movie is needed. `PAUSE_MENU_PAGES_MAP.setDisplayConfig()` anchors the title to the top safe margin in fullscreen map mode. `PAUSE_MENU_MAP.SET_TITLE()` styles the live label with embedded Figtree Bold at size 32 (Scaleform units), and both title and distance callbacks keep the ruler hidden. The title is the game's area name, not a hardcoded name or a blip category. The screenshots above show the layout before the Figtree font change.
+The area title and distance ruler are part of the same `pause_menu_pages_map.gfx`; no additional streamed movie is needed. `PAUSE_MENU_PAGES_MAP.setDisplayConfig()` anchors the title to the top safe margin in fullscreen map mode. `PAUSE_MENU_MAP.SET_TITLE()` styles the live label with embedded Figtree Bold at size 32 (Scaleform units), and both title and distance callbacks keep the ruler hidden. The title is the game's area name, not a hardcoded name or a blip category.
 
 ### Fonts
 
@@ -62,9 +65,7 @@ The static TTF and SIL Open Font License are in `src/fonts`; see its [provenance
 
 ## Dynamic category tags
 
-![Custom category heading with a Test Blip entry and no visible category tag](docs/images/custom-category.png)
-
-*Custom category example: `[CUSTOM] Test Blip` displays as **Test Blip** beneath the **CUSTOM** heading.*
+The screenshot above shows `[CUSTOM2] [NEW] Test Blip` displayed as **Test Blip** beneath the **CUSTOM2** heading, with a **NEW** badge.
 
 Set the blip's name in its existing resource/config to a string like:
 
@@ -75,7 +76,21 @@ Set the blip's name in its existing resource/config to a string like:
 | `[FOOD] Burger Shot` | FOOD | Burger Shot |
 | `[MEDICAL] Pillbox Hospital` | MEDICAL | Pillbox Hospital |
 
-Any non-empty tag creates a group automatically; new categories do **not** require editing or rebuilding the Scaleform. Tags override keyword matching. Names are trimmed and categories are case-insensitive: `[ vehicles ]` merges with `[VEHICLES]`. GTA prefixes such as `Garages: [VEHICLES] Hayes Depot` are supported too. The parser removes the prefix only from the displayed legend label; the original slot data and name remain untouched.
+Any non-empty category tag except the reserved `[NEW]` marker creates a group automatically; new categories do **not** require editing or rebuilding the Scaleform. Tags override keyword matching. Names are trimmed and categories are case-insensitive: `[ vehicles ]` merges with `[VEHICLES]`. GTA prefixes such as `Garages: [VEHICLES] Hayes Depot` are supported too. The parser removes the prefix only from the displayed legend label; the original slot data and name remain untouched.
+
+### NEW badges
+
+| Blip name | Heading | Row label | Badge |
+| --- | --- | --- | --- |
+| `[CUSTOM2] Test Blip` | CUSTOM2 | Test Blip | None |
+| `[CUSTOM2] [NEW] Test Blip` | CUSTOM2 | Test Blip | NEW |
+| `[NEW] [CUSTOM2] Test Blip` | CUSTOM2 | Test Blip | NEW |
+| `[CUSTOM2] Test Blip [new]` | CUSTOM2 | Test Blip | NEW |
+| `[NEW] Bank` | SHOPS & SERVICES (keyword fallback) | Bank | NEW |
+
+`[NEW]` is case-insensitive and may appear anywhere in the name, including after GTA's `Garages:` prefix. All occurrences are removed before category parsing and alphabetical sorting; duplicate markers produce one badge. Use the exact bracketed spelling, without spaces inside the brackets. `[NEWISH]` remains an ordinary category, and an incomplete `[NEW` stays literal. A name made only of NEW markers is retained without a badge rather than becoming an empty row.
+
+The badge stays until the owning resource renames or recreates the blip without `[NEW]`; it does not expire or clear when selected. It applies to the legend row GTA supplies, including grouped entries. This badge uses our explicit name tag, not GTA's separate native new-item flag. Other interfaces using the original name may still show the tag. No Lua loop or Scaleform method call is needed for this feature.
 
 ### Add or rename a custom spot
 
@@ -115,7 +130,7 @@ The legend has no registration export or central list of custom spots. To introd
 | `[VEHICLES]` | No location name; tag is not consumed |
 | `[VEHICLES] [PUBLIC] Hayes Depot` | Only the first tag is read; `[PUBLIC] Hayes Depot` remains the label |
 
-The parser recognizes a leading tag, or a tag immediately after the first colon and optional whitespace, as in GTA's `Garages:` prefix. It does not search arbitrary positions inside a name. It removes `<C>`/`</C>` name-formatting markers before parsing.
+After removing any `[NEW]` markers, the category parser recognizes a leading tag, or a tag immediately after the first colon and optional whitespace, as in GTA's `Garages:` prefix. Category tags are not searched at arbitrary positions inside a name. It removes `<C>`/`</C>` name-formatting markers before parsing.
 
 Category names are trimmed and converted to uppercase. Interior spaces and punctuation are preserved: `[FOOD SPOTS]` and `[FOOD  SPOTS]` are different groups. Keep category names consistent and concise. Prefix removal applies to this map legend; other UI that uses the original blip name may still display the tag.
 
@@ -198,6 +213,8 @@ There is no automatic watcher for other resources' config files. Saving a new na
 
 ## Source and build
 
+Before another Scaleform edit, read the [Scaleform editing notes](docs/scaleform-editing-notes.md): the failures we encountered, accessor/compiler quirks, font embedding, native data contracts, and the build-and-verify workflow.
+
 Original extracted read-only with the installed CodeWalker Core library from:
 
 ```text
@@ -215,7 +232,7 @@ src/
   scripts/__Packages/            # Editable ActionScript classes
 stream_enhanced/
   pause_menu_pages_map.gfx        # Built movie loaded by FiveM Enhanced
-docs/images/                     # README screenshots
+docs/images/                     # Current README screenshot
 build.ps1                        # Build and verification
 test-layout.cjs                  # Source and compiled-code checks
 fxmanifest.lua                   # FiveM resource manifest
@@ -248,6 +265,10 @@ To use another JPEXS installation:
 The default JPEXS path is `C:\Program Files (x86)\FFDec\ffdec-cli.jar`; `java` and `node` must be available on PATH. The build first embeds the vendored fonts in a temporary copy of the base movie, then imports ActionScript, inspects the final font data and bytecode, and runs the behavioral checks. It is offline and does not install fonts. A successful build replaces the streamed file only after its checks pass.
 
 For developers, `parseLabel()` handles tags, `categoryFor()` defines fallback keywords, `groupFor()` merges/creates categories, and `rebuildOrder()` applies category precedence and sorting in `PauseMenuMapView.as`. The predefined names are initialized in the constructor and reset in `rebuildOrder()`; the rank calculation controls where custom categories and **Other** appear. Update all relevant pieces together when changing default category order. Ordinary tagged categories do not need these source edits.
+
+`parseLabel()` also returns `isNew`; `PauseMenuMapItem.updateDisplay()` draws the badge and reserves label space before measuring/truncating the name. The badge visibility is refreshed on every row update so pooled rows do not carry it onto unrelated locations.
+
+Lua can invoke exposed Scaleform methods with `BeginScaleformMovieMethod`, parameters, and `EndScaleformMovieMethod` ([Cfx guide](https://docs.fivem.net/docs/scripting-manual/using-scaleform/)). The pause menu has a dedicated `BeginScaleformMovieMethodOnFrontend` entry point ([native definition](https://github.com/citizenfx/natives/blob/master/GRAPHICS/BeginScaleformMovieMethodOnFrontend.md)). Custom calls to this nested map component need a compatible frontend routing method and in-game verification; this resource does not currently expose a custom Lua API.
 
 ## Verification
 
