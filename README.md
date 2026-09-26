@@ -231,5 +231,3 @@ The supplied in-game screenshots confirm that version 0.3.0 displays the grouped
 ## Rollback
 
 The confirmed working versions and their editable scripts are saved in `source/working-0.1.1` and `source/working-0.2.1`. To temporarily restore its appearance, copy its `pause_menu_pages_map.gfx` over the file in `stream_enhanced`, restart the resource, and restart FiveM. Running the current build script will rebuild 0.3.0.
-
-To return to vanilla, stop `aj-map-legend` and restart FiveM. Original game archives and other resources were not modified. `[dev]` is Git-ignored, so this prototype and its backup are local only.
