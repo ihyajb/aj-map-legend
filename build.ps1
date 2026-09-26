@@ -3,8 +3,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$original = Join-Path $PSScriptRoot 'source\original\pause_menu_pages_map.gfx'
-$scripts = Join-Path $PSScriptRoot 'source\scripts'
+$original = Join-Path $PSScriptRoot 'src\base\pause_menu_pages_map.gfx'
+$scripts = Join-Path $PSScriptRoot 'src\scripts'
 $output = Join-Path $PSScriptRoot 'stream_enhanced\pause_menu_pages_map.gfx'
 $buildDirectory = Join-Path ([IO.Path]::GetTempPath()) ('aj-map-legend-' + [guid]::NewGuid())
 [IO.Directory]::CreateDirectory($buildDirectory) | Out-Null

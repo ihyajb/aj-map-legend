@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const sourceRoot = process.argv[2] || path.join(__dirname, 'source/scripts/__Packages/com/rockstargames/gtav/pauseMenu');
+const sourceRoot = process.argv[2] || path.join(__dirname, 'src/scripts/__Packages/com/rockstargames/gtav/pauseMenu');
 const viewSource = fs.readFileSync(path.join(sourceRoot, 'pauseMenuItems/singleplayer/PauseMenuMapView.as'), 'utf8').replace(/\r\n/g, '\n');
 const rowSource = fs.readFileSync(path.join(sourceRoot, 'pauseMenuItems/singleplayer/PauseMenuMapItem.as'), 'utf8').replace(/\r\n/g, '\n');
 
@@ -180,4 +180,74 @@ view.addItem(0, record(0, 'Only Location'));
 view.renderSelection(0);
 view.moveSelection(1);
 checkSelection(0);
-console.log('PASS: grouping, native IDs, navigation, layout, cycling, You, dynamic tags, malformed tags, live recategorization, heading formatting, empty/single lists.');
+// Exercise title/distance callbacks and safe-zone changes from both source and
+// the decompiled movie. These are separate from the grouped list's layout.
+const componentSource = fs.readFileSync(path.join(sourceRoot, 'pauseComponents/PAUSE_MENU_MAP.as'), 'utf8').replace(/\r\n/g, '\n');
+const pageSource = fs.readFileSync(path.join(sourceRoot, '../pauseMenuPages/PAUSE_MENU_PAGES_MAP.as'), 'utf8').replace(/\r\n/g, '\n');
+function method(source, name) {
+  const match = source.match(new RegExp('function ' + name + '\\(([^)]*)\\)\\s*\\{([\\s\\S]*?)\\n   \\}'));
+  assert.ok(match, 'Missing method: ' + name);
+  return vm.runInNewContext('(function(' + match[1] + '){' + match[2] + '\n})', {
+    TextFormat: function(font, size, color) { this.font = font; this.size = size; this.color = color; },
+    com: { rockstargames: { gtav: { pauseMenu: { pauseComponents: { PAUSE_MENU_MAP: value => value } } } } }
+  });
+}
+const titleClip = clip();
+titleClip.createTextField('locationTF');
+const mapComponent = {
+  location: { _x: 0, _y: -30, bgMC: { _visible: true }, labelMC: titleClip },
+  zoom: { _visible: true }, updateScroll() {}
+};
+const setTitle = method(componentSource, 'SET_TITLE');
+const setDescription = method(componentSource, 'SET_DESCRIPTION');
+for (const label of ['Alta', 'Redwood Lights Track', '', undefined, 'Pillbox Hill']) {
+  mapComponent.zoom._visible = true;
+  setTitle.call(mapComponent, label);
+  assert.equal(mapComponent.zoom._visible, false, 'Area updates must never restore the distance scale');
+  assert.equal(mapComponent.location.bgMC._visible, false);
+  assert.equal(mapComponent.location._y, 0, 'Remove the old bottom-relative title offset');
+  assert.equal(mapComponent.location._visible, Boolean(label));
+  if (label) {
+    assert.equal(titleClip.locationTF.text, label.toUpperCase());
+    assert.equal(titleClip.locationTF.formattedText, label.toUpperCase());
+    assert.equal(titleClip.locationTF.format.font, '$Font2_cond_NOT_GAMERNAME');
+    assert.equal(titleClip.locationTF.format.bold, false, 'Do not request an unloaded bold face');
+    assert.equal(titleClip.locationTF.format.italic, false, 'Do not request an unloaded italic face');
+    assert.equal(titleClip.locationTF.format.size, 32);
+    assert.equal(titleClip.locationTF.format.color, 0xffffff);
+    assert.equal(titleClip.weightTF.text, titleClip.locationTF.text, 'Weight layer must follow the live area name');
+    assert.equal(titleClip.weightTF.formattedText, titleClip.locationTF.text);
+    assert.equal(titleClip.weightTF.format.font, titleClip.locationTF.format.font);
+    assert.equal(titleClip.weightTF._x, titleClip.locationTF._x + 0.75);
+    assert.equal(titleClip.weightTF._y, titleClip.locationTF._y);
+    assert.equal(titleClip.weightTF.selectable, false);
+  }
+  mapComponent.zoom._visible = true;
+  setDescription.call(mapComponent, '0', '5639ft');
+  assert.equal(mapComponent.zoom._visible, false, 'Distance updates must stay hidden');
+}
+const weightField = titleClip.weightTF;
+setTitle.call(mapComponent, 'Alta');
+assert.equal(titleClip.weightTF, weightField, 'Repeated area updates must reuse the weight field');
+setTitle.call(mapComponent, '');
+assert.equal(mapComponent.location._visible, false, 'Empty area hides both text layers together');
+function column() {
+  const viewContainer = {};
+  return { details: {}, model: { getCurrentView: () => ({ viewContainer }) }, scrollBase: {}, updateScroll() {} };
+}
+const page = { column0: column(), column1: column(), column2: {}, inFullscreenMode: true, dx: 0, dy: 430 };
+const setDisplayConfig = method(pageSource, 'setDisplayConfig');
+for (const [width, height, top, left] of [[1920, 1080, 0.02, 0.02], [3440, 1440, 0.05, 0.05], [1280, 720, 0, 0]]) {
+  setDisplayConfig.call(page, width, height, top, 1 - top, left, 1 - left, true);
+  for (const mapColumn of [page.column0, page.column1]) {
+    assert.equal(mapColumn.details._x, Math.round(left * 1280));
+    assert.equal(mapColumn.details._y, Math.round(top * 720), 'Area title follows the top safe margin');
+    assert.equal(mapColumn.model.getCurrentView().viewContainer._x, Math.round((1 - left) * 1280));
+    assert.equal(mapColumn.model.getCurrentView().viewContainer._y, Math.round(top * 720));
+  }
+}
+page.inFullscreenMode = false;
+setDisplayConfig.call(page, 1920, 1080, 0.02, 0.98, 0.02, 0.98, true);
+assert.equal(page.column1.details._y, page.dy, 'Preserve the normal page layout when leaving fullscreen');
+assert.equal(page.column1.model.getCurrentView().viewContainer._x, 868);
+console.log('PASS: grouping, native IDs, navigation, layout, cycling, You, dynamic tags, heading formatting, live area title, hidden distance scale, safe-zone placement.');

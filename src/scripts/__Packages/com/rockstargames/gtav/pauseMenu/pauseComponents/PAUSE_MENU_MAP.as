@@ -36,26 +36,60 @@ class com.rockstargames.gtav.pauseMenu.pauseComponents.PAUSE_MENU_MAP extends co
    }
    function SET_TITLE(str)
    {
+      // The game still supplies the live area name and distance callbacks.
+      this.zoom._visible = false;
+      this.location.bgMC._visible = false;
+      this.location._x = this.location._y = 0;
+      this.location.labelMC._x = this.location.labelMC._y = 0;
       if(str != undefined && str != "")
       {
-         com.rockstargames.ui.utils.UIText.setSizedText(this.location.labelMC.locationTF,str.toUpperCase(),false,true);
-         this.location.bgMC._width = Math.round(this.location.labelMC._x + this.location.labelMC._width + 10);
+         var title = this.location.labelMC.locationTF;
+         // Use the same verified font as the legend. The fontmap alone does not
+         // guarantee a face (or its bold/italic variant) has loaded glyphs.
+         var format = new TextFormat("$Font2_cond_NOT_GAMERNAME",32,16777215);
+         format.align = "left";
+         format.bold = false;
+         format.italic = false;
+         title._x = title._y = 0;
+         title._width = 760;
+         title._height = 52;
+         title.autoSize = "left";
+         title.multiline = false;
+         title.wordWrap = false;
+         title.selectable = false;
+         title.embedFonts = true;
+         title.setNewTextFormat(format);
+         title.text = str.toUpperCase();
+         title.setTextFormat(format);
+         // A small horizontal overdraw gives the available glyphs extra weight.
+         // Reuse one field, so area updates never accumulate display objects.
+         var label = this.location.labelMC;
+         if(label.weightTF == undefined)
+         {
+            label.createTextField("weightTF",100,0.75,0,760,52);
+         }
+         var weight = label.weightTF;
+         weight._x = title._x + 0.75;
+         weight._y = title._y;
+         weight.autoSize = "left";
+         weight.multiline = false;
+         weight.wordWrap = false;
+         weight.selectable = false;
+         weight.embedFonts = true;
+         weight.setNewTextFormat(format);
+         weight.text = title.text;
+         weight.setTextFormat(format);
          this.location._visible = true;
-         this.zoom._visible = true;
       }
       else
       {
          this.location._visible = false;
-         this.zoom._visible = false;
       }
       this.updateScroll();
    }
    function SET_DESCRIPTION()
    {
-      this.zoom.startTF.autoSize = "left";
-      this.zoom.startTF.text = arguments[0];
-      this.zoom.endTF.autoSize = "right";
-      this.zoom.endTF.text = arguments[1];
+      this.zoom._visible = false;
       this.updateScroll();
    }
    function SET_HIGHLIGHT(i)

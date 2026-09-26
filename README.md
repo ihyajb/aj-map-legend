@@ -1,6 +1,6 @@
 # Native map legend — grouped Locations panel
 
-Version 0.3.0 is an edited GTA V Enhanced Scaleform. It uses the game's blip data and callbacks, without NUI or a client loop.
+An edited GTA V Enhanced Scaleform using the game's blip data and callbacks, without NUI or a client loop.
 
 For everyday use, name a blip **`[CATEGORY] Location Name`** in the resource that creates it. The legend displays **Location Name** under **CATEGORY**. If there is no valid tag, the legend chooses a category using the keyword rules below.
 
@@ -13,7 +13,7 @@ For everyday use, name a blip **`[CATEGORY] Location Name`** in the resource tha
 
 Categories are **section headings in one scrolling list**, not clickable tabs. Up/down moves between locations and skips headings. Left/right cycles a selected location when GTA supplies multiple blips in that entry. Mouse selection still uses the original native slot ID.
 
-This resource only changes the legend's presentation. Adding a tag does not create a new map location, set coordinates, choose an icon, or split a native grouped entry into separate rows. A `1/6` counter still represents the locations GTA supplied for that entry.
+This resource changes the map UI's presentation. Adding a tag does not create a new map location, set coordinates, choose an icon, or split a native grouped entry into separate rows. A `1/6` counter still represents the locations GTA supplied for that entry.
 
 ## Try it
 
@@ -45,8 +45,20 @@ Fully restart FiveM and reconnect to unload the previously cached frontend movie
 - Entries sort alphabetically within each section. Categories without entries are omitted. A category heading repeats at the top when scrolling into the middle of that section.
 - Grouped location counters remain on the right, with the native left/right cycling behavior.
 - A visual-order position count and thin scrollbar replace the native footer count.
+- A large white uppercase condensed area name with simulated extra weight at the top left, aligned with the screen's safe margins. GTA still supplies the live name as you browse the map.
+- The bottom-left distance ruler and its numbers are hidden, along with the old area-name background.
 
 This pass implements the grouped panel and player label from the reference, without a search field or checkbox controls. Existing native visibility callbacks remain available.
+
+The area title and distance ruler are part of the same `pause_menu_pages_map.gfx`; no additional streamed movie is needed. `PAUSE_MENU_PAGES_MAP.setDisplayConfig()` anchors the title to the top safe margin in fullscreen map mode. `PAUSE_MENU_MAP.SET_TITLE()` styles the live label with the shared `$Font2_cond_NOT_GAMERNAME` font at size 32 (Scaleform units), and both title and distance callbacks keep the ruler hidden. The title is the game's area name, not a hardcoded name or a blip category. The screenshots above focus on the Locations panel.
+
+### Fonts
+
+The area title uses the same `$Font2_cond_NOT_GAMERNAME` font already rendering in the Locations panel. A second white text field offset horizontally by 0.75 Scaleform units adds weight without requesting an unavailable bold or italic face. This is simulated weight, not a separate bold font. Both fields receive the same live text and formatting, reuse their display objects, and hide together when the area name is empty. The Locations panel keeps its existing styling.
+
+A font mapping alone does not prove that the map has loaded its glyphs. For example, `$HelveticaBLKI` exists in `common/data/ui/fontmap.xml`, but the installed `font_lib_efigs_pc.gfx` has no Helvetica face among its nine font definitions; using it here produced missing-glyph boxes. The condensed face used here is present in that library, with bold/italic flags explicitly disabled. Before switching fonts, verify the actual font library and style, then test rendering in-game.
+
+To change this heading, edit the `TextFormat` in `PAUSE_MENU_MAP.SET_TITLE()`, update the corresponding font expectation in `test-layout.cjs`, and rebuild. Names must resolve to fonts available to the game. Installing a TTF on the server or putting it beside the GFX is not enough. A custom font requires embedding/exporting its glyphs in a Scaleform font library (or the movie) and making that font available to the map. This resource currently uses built-in fonts only; no custom-font loader is included. See [Scaleform font libraries and mapping](https://help.autodesk.com/cloudhelp/ENU/Scaleform-Help/scaleform_help/font/part_2.html).
 
 ## Dynamic category tags
 
@@ -158,7 +170,7 @@ The player (`radar_centre`) and waypoint (`radar_waypoint`) are special entries 
 
 Untagged names continue to use `categoryFor()` keyword matching in `PauseMenuMapView.as`; unmatched entries remain in **Other**. Tags are presentation groups, not changes to Lua blip category IDs. Existing resource blip names have not been renamed automatically. The list updates when GTA supplies a new/updated slot; reopen the map if needed after changing a blip name.
 
-Version 0.3.0 also reapplies the shared font and text color after assigning each category heading and footer label. The in-game screenshots above show readable headings, including a custom category, following the missing glyphs reported in 0.2.1.
+The renderer reapplies the shared font and text color after assigning each category heading and footer label so dynamically updated text retains its glyphs and formatting.
 
 ## Updating names versus rebuilding the UI
 
@@ -193,9 +205,26 @@ X:\SteamLibrary\steamapps\common\Grand Theft Auto V Enhanced\update\update.rpf
   x64\data\cdimages\scaleform_generic.rpf\pause_menu_pages_map.gfx
 ```
 
-The original is in `source/original`. The four edited classes under `source/scripts` are:
+The repository keeps one set of source files and one exported movie:
 
-- `PAUSE_MENU_MAP.as`: native input routing, display setup, original footer suppression.
+```text
+src/
+  base/pause_menu_pages_map.gfx   # Original movie used as the build template
+  scripts/__Packages/            # Editable ActionScript classes
+stream_enhanced/
+  pause_menu_pages_map.gfx        # Built movie loaded by FiveM Enhanced
+docs/images/                     # README screenshots
+build.ps1                        # Build and verification
+test-layout.cjs                  # Source and compiled-code checks
+fxmanifest.lua                   # FiveM resource manifest
+```
+
+Keep `src/base/pause_menu_pages_map.gfx`: it supplies the original symbols, shared imports, and untouched scripts when JPEXS imports the edited classes. It is a required build input, not a version snapshot. The output stays in `stream_enhanced` because this resource targets Enhanced. Git history replaces local backup/version folders.
+
+The five edited classes under `src/scripts` are:
+
+- `PAUSE_MENU_MAP.as`: native input routing, display setup, original footer suppression, area-title styling and distance-ruler suppression.
+- `PAUSE_MENU_PAGES_MAP.as`: fullscreen area-title placement using the top and left safe margins.
 - `PauseMenuMapItem.as`: row styling, label fitting, **You**, icons and cycling callbacks.
 - `PauseMenuMapView.as`: group rules, display order, headings, scrolling and native-index mapping.
 - `PauseMenuMapModel.as`: native slot updates routed through the grouped view.
@@ -220,14 +249,14 @@ For developers, `parseLabel()` handles tags, `categoryFor()` defines fallback ke
 
 ## Verification
 
-The build runs `test-layout.cjs` twice: on the editable AS2 source, then on AS2 decompiled from the compiled candidate. Both passes execute the view's algorithms in a JavaScript harness. It checks category ordering, native slot identity, all selections across a 72-entry list, forward/backward wraparound, header and row bounds, live updates, cycling state persistence, player-label replacement, dynamic category tags, malformed tags, live recategorization, heading formatting, and empty/single-entry lists. It does not emulate GFx rendering or the game's input dispatch.
+The build runs `test-layout.cjs` twice: on the editable AS2 source, then on AS2 decompiled from the compiled candidate. Both passes execute the view's algorithms and map callbacks in a JavaScript harness. It checks category ordering, native slot identity, all selections across a 72-entry list, forward/backward wraparound, header and row bounds, live updates, cycling state persistence, player-label replacement, dynamic category tags, malformed tags, live recategorization, heading formatting, and empty/single-entry lists. It also checks changing/empty area names, reapplying title formatting, keeping the ruler hidden through title/distance updates, top-left safe-zone placement, and restoring normal page coordinates outside fullscreen. It does not emulate GFx rendering or the game's input dispatch.
 
-JPEXS compiles the result and exports its bytecode. Build checks require explicit accessor calls for data, selection, and IDs, preventing the earlier `NaN` regression. A binary XML comparison confirmed the same 274 top-level tags, with only the four intended ActionScript initialization tags changed; other assets and scripts are preserved.
+JPEXS compiles the result and exports its bytecode. Build checks require explicit accessor calls for data, selection, and IDs, preventing the earlier `NaN` regression.
 
-Version 0.2.0 displayed an empty panel in-game. Bytecode inspection showed that JPEXS 23 omitted the initializers from all seven `for(var ...)` loops. Running the harness on that compiled movie reproduced the empty list (0 entries instead of 72), while the source-only test had passed. Version 0.2.1 uses explicitly initialized `while` loops, and the build now rejects candidates that fail the decompiled-code behavioral test.
+JPEXS 23 can omit initializers in AS2 `for(var ...)` loops. Use explicitly initialized `while` loops for counted iteration. The build checks code recovered from the compiled movie because source-only tests cannot catch compiler omissions.
 
-The supplied in-game screenshots confirm that version 0.3.0 displays the grouped panel, readable category headings, **You**, and a custom category with its tag removed from the visible label. They do not verify every interaction. Further in-game checks should cover arrow keys/controller navigation, mouse selection across category boundaries, selecting an actual map blip, grouped location cycling, long labels, and closing/reopening the map at your usual resolution and safe-zone settings.
+Source and compiled-code checks also cover synchronized text/formatting in both area-title layers, reuse of the extra field, and hiding both layers for empty names. The current appearance has been confirmed in-game. Automated checks do not emulate GFx rendering: future UI changes still need checks of font rendering, long labels, navigation, cycling, map reopening, and safe-zone settings in-game.
 
 ## Rollback
 
-The confirmed working versions and their editable scripts are saved in `source/working-0.1.1` and `source/working-0.2.1`. To temporarily restore its appearance, copy its `pause_menu_pages_map.gfx` over the file in `stream_enhanced`, restart the resource, and restart FiveM. Running the current build script will rebuild 0.3.0.
+Use Git history to restore a previous committed revision, keeping its source, build tooling, and exported movie together. Commit source changes and the rebuilt `stream_enhanced/pause_menu_pages_map.gfx` together after verification. After deploying a restored movie, restart the resource and fully restart FiveM to unload the cached frontend movie.
