@@ -9,6 +9,8 @@ $output = Join-Path $PSScriptRoot 'stream_enhanced\pause_menu_pages_map.gfx'
 $buildDirectory = Join-Path ([IO.Path]::GetTempPath()) ('aj-map-legend-' + [guid]::NewGuid())
 [IO.Directory]::CreateDirectory($buildDirectory) | Out-Null
 $candidate = Join-Path $buildDirectory 'pause_menu_pages_map.gfx'
+$fontBase = Join-Path $buildDirectory 'map-with-figtree.gfx'
+$fontFile = Join-Path $PSScriptRoot 'src\fonts\Figtree-Bold.ttf'
 
 & node (Join-Path $PSScriptRoot 'test-layout.cjs')
 if ($LASTEXITCODE -ne 0) {
@@ -19,13 +21,46 @@ if ($LASTEXITCODE -ne 0) {
 $previousAppData = $env:APPDATA
 try {
     $env:APPDATA = $buildDirectory
-    & java "-Duser.home=$buildDirectory" -jar $JpexsJar -onerror abort -importScript $original $candidate $scripts
+    # Java 8 includes Nashorn; the helper uses the same installed JPEXS library.
+    & java "-Duser.home=$buildDirectory" '-Djava.awt.headless=true' -cp $JpexsJar jdk.nashorn.tools.Shell (Join-Path $PSScriptRoot 'src\embed-font.js') -- $original $fontBase $fontFile
+    if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $fontBase)) {
+        throw 'Font embedding failed. Use Java 8 (with Nashorn) and JPEXS 23.0.1.'
+    }
+    & java "-Duser.home=$buildDirectory" -jar $JpexsJar -onerror abort -importScript $fontBase $candidate $scripts
     if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath $candidate)) {
         throw 'JPEXS did not produce the patched Scaleform.'
     }
     if ((Get-FileHash -LiteralPath $original).Hash -eq (Get-FileHash -LiteralPath $candidate).Hash) {
         throw 'The output is unchanged; the ActionScript import did not apply.'
     }
+
+    # Check the final movie, after script compilation, for the actual local font.
+    $fontXmlPath = Join-Path $buildDirectory 'font-verification.xml'
+    & java "-Duser.home=$buildDirectory" -jar $JpexsJar -swf2xml $candidate $fontXmlPath | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Could not inspect final font data.' }
+    [xml]$fontXml = Get-Content -LiteralPath $fontXmlPath -Raw
+    $fontTags = @($fontXml.swf.tags.item | Where-Object { $_.type -eq 'DefineCompactedFont' -and $_.fonts.item.fontName -eq 'Figtree' })
+    if ($fontTags.Count -ne 1) { throw 'Final movie must contain one Figtree Bold face.' }
+    foreach ($fontTag in $fontTags) {
+        $fontData = $fontTag.fonts.item
+        if (([int]$fontData.flags -band 3) -ne 2 -or [int]$fontData.nominalSize -ne 1024 -or @($fontData.glyphInfo.item).Count -ne 407) {
+            throw 'Final Figtree style, scale, or glyph coverage is incorrect.'
+        }
+        $locationText = $fontXml.swf.tags.item | Where-Object { $_.type -eq 'DefineEditTextTag' -and $_.characterID -eq 139 }
+        if (([int]$fontData.flags -band 2) -eq 2 -and $locationText.fontId -ne $fontTag.fontId) { throw 'Area title is not bound to embedded Bold.' }
+        $glyphCodes = @($fontData.glyphInfo.item | ForEach-Object { [int]$_.glyphCode })
+        foreach ($code in 33..126) {
+            $glyphIndex = [Array]::IndexOf($glyphCodes, $code)
+            if ($glyphIndex -lt 0 -or @($fontData.glyphs.item[$glyphIndex].contours.item).Count -eq 0) {
+                throw "Missing printable ASCII outline: $code"
+            }
+        }
+    }
+    $otherText = @($fontXml.swf.tags.item | Where-Object { $_.type -eq 'DefineEditTextTag' -and $_.characterID -ne 139 })
+    if (@($otherText | Where-Object { $_.fontId -notin @('130','132') }).Count -ne 0) {
+        throw 'Non-title text must retain its native GTA font binding.'
+    }
+    Write-Output 'PASS: final movie retains Figtree Bold for headings and native GTA body-text bindings.'
 
     # Decompilation can hide broken accessor calls behind identical-looking AS2.
     $verification = Join-Path $buildDirectory 'verification'

@@ -3,4 +3,4 @@ game 'gta5'
 
 author 'AJ'
 description 'Experimental native pause-map legend styling for GTA V Enhanced'
-version '0.4.2'
+version '0.5.2'

@@ -97,12 +97,16 @@ function checkSelection(nativeIndex) {
   for (const heading of view.headings.filter(heading => heading._visible)) {
     rectangles.push([heading._y, heading._y + 24]);
     assert.equal(heading.titleTF.formattedText, heading.titleTF.text, 'Apply formatting after assigning each heading');
-    assert.equal(heading.titleTF.format.font, '$Font2_cond_NOT_GAMERNAME');
+    assert.equal(heading.titleTF.format.font, 'Figtree');
+    assert.equal(heading.titleTF.format.bold, true);
     assert.equal(heading.titleTF.format.color, 15725555);
   }
-  assert.equal(view.panelMC.positionTF.formattedText, view.panelMC.positionTF.text);
+  assert.equal(view.panelMC.positionTF, undefined, 'No position count should be created');
+  assert.equal(view.panelMC.emptyTF._visible, false);
+  assert.equal(view.panelMC.titleTF.format.font, 'Figtree');
+  assert.equal(view.panelMC.titleTF.format.bold, true);
   rectangles.sort((a, b) => a[0] - b[0]);
-  assert.ok(rectangles.every(([start, end], i) => start >= 34 && end <= 546 &&
+  assert.ok(rectangles.every(([start, end], i) => start >= 34 && end <= 570 &&
     (!i || rectangles[i - 1][1] <= start)), 'Rows and headers must fit without overlapping');
 }
 view.jumpTo(70);
@@ -174,12 +178,25 @@ assert.ok(!view.groupNames.includes('MEDICAL'), 'Unused dynamic category is remo
 view.destroy();
 assert.equal(view.dataList.length, 0);
 view.displayView();
-assert.equal(view.panelMC.positionTF.text, 'No locations');
+assert.equal(view.panelMC.emptyTF.text, 'No locations');
+assert.equal(view.panelMC.emptyTF._visible, true);
+assert.equal(view.panelMC.positionTF, undefined);
 assert.ok(view.itemList.every(item => !item._visible));
 view.addItem(0, record(0, 'Only Location'));
 view.renderSelection(0);
 view.moveSelection(1);
 checkSelection(0);
+const expandedView = new GroupedView();
+for (let index = 0; index < 20; index++) {
+  expandedView.addItem(index, record(index, '[JOBS] Location ' + String(index).padStart(2, '0')));
+}
+expandedView.displayView();
+const expandedRows = expandedView.itemList.filter(item => item._visible);
+assert.equal(expandedRows.length, 16, 'Reclaimed footer fits 16 rows plus their category heading');
+assert.equal(expandedRows[15]._y + 32, 570, 'Last row fills the former footer space');
+expandedView.jumpTo(19);
+assert.equal(expandedView.itemList[expandedView.highlightedItem].index, 19);
+assert.equal(expandedView.panelMC.positionTF, undefined);
 // Exercise title/distance callbacks and safe-zone changes from both source and
 // the decompiled movie. These are separate from the grouped list's layout.
 const componentSource = fs.readFileSync(path.join(sourceRoot, 'pauseComponents/PAUSE_MENU_MAP.as'), 'utf8').replace(/\r\n/g, '\n');
@@ -189,7 +206,10 @@ function method(source, name) {
   assert.ok(match, 'Missing method: ' + name);
   return vm.runInNewContext('(function(' + match[1] + '){' + match[2] + '\n})', {
     TextFormat: function(font, size, color) { this.font = font; this.size = size; this.color = color; },
-    com: { rockstargames: { gtav: { pauseMenu: { pauseComponents: { PAUSE_MENU_MAP: value => value } } } } }
+    com: { rockstargames: {
+      gtav: { pauseMenu: { pauseComponents: { PAUSE_MENU_MAP: value => value } } },
+      ui: { utils: { Colour: { Colourise() {} } } }
+    } }
   });
 }
 const titleClip = clip();
@@ -210,27 +230,67 @@ for (const label of ['Alta', 'Redwood Lights Track', '', undefined, 'Pillbox Hil
   if (label) {
     assert.equal(titleClip.locationTF.text, label.toUpperCase());
     assert.equal(titleClip.locationTF.formattedText, label.toUpperCase());
-    assert.equal(titleClip.locationTF.format.font, '$Font2_cond_NOT_GAMERNAME');
-    assert.equal(titleClip.locationTF.format.bold, false, 'Do not request an unloaded bold face');
+    assert.equal(titleClip.locationTF.format.font, 'Figtree');
+    assert.equal(titleClip.locationTF.format.bold, true, 'Match the embedded bold face');
     assert.equal(titleClip.locationTF.format.italic, false, 'Do not request an unloaded italic face');
     assert.equal(titleClip.locationTF.format.size, 32);
     assert.equal(titleClip.locationTF.format.color, 0xffffff);
-    assert.equal(titleClip.weightTF.text, titleClip.locationTF.text, 'Weight layer must follow the live area name');
-    assert.equal(titleClip.weightTF.formattedText, titleClip.locationTF.text);
-    assert.equal(titleClip.weightTF.format.font, titleClip.locationTF.format.font);
-    assert.equal(titleClip.weightTF._x, titleClip.locationTF._x + 0.75);
-    assert.equal(titleClip.weightTF._y, titleClip.locationTF._y);
-    assert.equal(titleClip.weightTF.selectable, false);
+    assert.equal(titleClip.weightTF, undefined, 'Real bold font needs no duplicate weight layer');
   }
   mapComponent.zoom._visible = true;
   setDescription.call(mapComponent, '0', '5639ft');
   assert.equal(mapComponent.zoom._visible, false, 'Distance updates must stay hidden');
 }
-const weightField = titleClip.weightTF;
-setTitle.call(mapComponent, 'Alta');
-assert.equal(titleClip.weightTF, weightField, 'Repeated area updates must reuse the weight field');
 setTitle.call(mapComponent, '');
-assert.equal(mapComponent.location._visible, false, 'Empty area hides both text layers together');
+assert.equal(mapComponent.location._visible, false, 'Empty area hides the title');
+// Approximate measured widths to exercise fitting and hit regions independently
+// of GFx. The final movie's actual font data is checked separately by the build.
+function measuredText() {
+  return {
+    text: '', format: {},
+    getTextFormat() { return {}; },
+    setNewTextFormat(format) { this.defaultFormat = { ...format }; },
+    setTextFormat(format) { this.format = { ...format }; },
+    get textWidth() { return this.text.length * this.format.size * 0.6; },
+    get _width() { return this.textWidth + 4; }
+  };
+}
+const updateRow = method(rowSource, 'updateDisplay');
+const clickRow = method(rowSource, 'mPress');
+for (const count of [1, 39, 1000]) {
+  const rowData = ['A very long location name with extra details', 80, 180, 210, undefined];
+  const row = Object.assign(clip(), {
+    __get__data: () => rowData, get data() { return rowData; },
+    __get__highlighted: () => true, highlighted: true,
+    displayLabel: () => rowData[0], _showBlips: true,
+    bgMC: {}, bMC: {}, labelMC: {}, newIconMC: {}, iconMC: clip(),
+    itemTextLeft: measuredText(), valueTF: measuredText(), lMC: {}, rMC: {},
+    valuesLength: count, selectedValue: count - 1,
+    stepVal(direction) { this.lastStep = direction; }
+  });
+  row.valueIndicatorMC = { get _width() { return row.rMC._x + 8; } };
+  updateRow.call(row);
+  assert.equal(row.itemTextLeft.format.font, '$Font2_cond_NOT_GAMERNAME');
+  assert.equal(row.itemTextLeft.format.bold, false);
+  assert.ok(row.itemTextLeft.format.size <= 18 && row.itemTextLeft.format.size >= 16);
+  assert.equal(row.itemTextLeft.embedFonts, true);
+  assert.ok(row.itemTextLeft.text.endsWith('...'), 'Long labels must still fit');
+  if (count > 1) {
+    assert.equal(row.valueTF.format.font, '$Font2_cond_NOT_GAMERNAME');
+    assert.equal(row.valueTF.format.bold, false);
+    assert.equal(row.valueTF.embedFonts, true);
+    assert.ok(row.itemTextLeft.textWidth <= row.valueIndicatorMC._x - 10);
+    const counterLeft = row.labelMC._x + row.valueIndicatorMC._x;
+    row._xmouse = counterLeft + row.lMC._x;
+    clickRow.call(row);
+    assert.equal(row.lastStep, -1, 'Left arrow hit region follows the resized counter');
+    row._xmouse = counterLeft + row.rMC._x;
+    clickRow.call(row);
+    assert.equal(row.lastStep, 1, 'Right arrow hit region follows the resized counter');
+  } else {
+    assert.ok(row.itemTextLeft.textWidth <= 240);
+  }
+}
 function column() {
   const viewContainer = {};
   return { details: {}, model: { getCurrentView: () => ({ viewContainer }) }, scrollBase: {}, updateScroll() {} };

@@ -86,7 +86,7 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapI
       this.bgMC._width = this.bMC._width = 300;
       this.bgMC._height = this.bMC._height = 32;
       this.labelMC._x = 42;
-      this.labelMC._y = 2;
+      this.labelMC._y = 3;
       this.newIconMC._visible = false;
       this.itemTextLeft.autoSize = "left";
       this.itemTextLeft.multiline = false;
@@ -94,11 +94,33 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapI
       this.itemTextLeft.text = this.displayLabel();
       var labelFormat = this.itemTextLeft.getTextFormat();
       labelFormat.font = "$Font2_cond_NOT_GAMERNAME";
-      labelFormat.size = 20;
+      labelFormat.bold = false;
+      labelFormat.italic = false;
+      this.itemTextLeft.embedFonts = true;
+      labelFormat.size = 18;
       this.itemTextLeft.setNewTextFormat(labelFormat);
       this.itemTextLeft.setTextFormat(labelFormat);
       var hasCounter = this.valuesLength > 1 && this._showBlips;
-      var textWidth = hasCounter ? 174 : 240;
+      this.valueIndicatorMC._visible = hasCounter;
+      if(hasCounter)
+      {
+         this.valueTF.text = this.selectedValue + 1 + "/" + this.valuesLength;
+         var counterFormat = this.valueTF.getTextFormat();
+         counterFormat.font = "$Font2_cond_NOT_GAMERNAME";
+         counterFormat.bold = false;
+         counterFormat.italic = false;
+         this.valueTF.embedFonts = true;
+         counterFormat.size = 18;
+         this.valueTF.setNewTextFormat(counterFormat);
+         this.valueTF.setTextFormat(counterFormat);
+         this.valueTF._x = 12;
+         this.valueTF._y = 2;
+         this.lMC._x = 2;
+         this.rMC._x = Math.round(this.valueTF._x + this.valueTF._width) + 8;
+         this.lMC._y = this.rMC._y = 14;
+         this.valueIndicatorMC._x = 300 - 42 - this.valueIndicatorMC._width - 12;
+      }
+      var textWidth = hasCounter ? Math.max(40,this.valueIndicatorMC._x - 10) : 240;
       var fullLabel = this.itemTextLeft.text;
       while(this.itemTextLeft.textWidth > textWidth && labelFormat.size > 16)
       {
@@ -110,22 +132,6 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapI
          fullLabel = fullLabel.substring(0,fullLabel.length - 1);
          this.itemTextLeft.text = fullLabel + "...";
          this.itemTextLeft.setTextFormat(labelFormat);
-      }
-      this.valueIndicatorMC._visible = hasCounter;
-      if(hasCounter)
-      {
-         this.valueTF.text = this.selectedValue + 1 + "/" + this.valuesLength;
-         var counterFormat = this.valueTF.getTextFormat();
-         counterFormat.font = "$Font2_cond_NOT_GAMERNAME";
-         counterFormat.size = 18;
-         this.valueTF.setNewTextFormat(counterFormat);
-         this.valueTF.setTextFormat(counterFormat);
-         this.valueTF._x = 12;
-         this.valueTF._y = 2;
-         this.lMC._x = 2;
-         this.rMC._x = Math.round(this.valueTF._x + this.valueTF._width) + 8;
-         this.lMC._y = this.rMC._y = 14;
-         this.valueIndicatorMC._x = 300 - 42 - this.valueIndicatorMC._width - 12;
       }
       if(this.iconID != undefined)
       {
@@ -235,9 +241,10 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapI
       {
          _level0.TIMELINE.M_PRESS_EVENT(this.index,this.__get__columnID(),false);
       }
-      else if(this.valuesLength > 1 && this._xmouse >= 222)
+      else if(this.valuesLength > 1 && this._xmouse >= this.labelMC._x + this.valueIndicatorMC._x)
       {
-         this.stepVal(this._xmouse < 261 ? -1 : 1);
+         var midpoint = this.labelMC._x + this.valueIndicatorMC._x + (this.lMC._x + this.rMC._x) / 2;
+         this.stepVal(this._xmouse < midpoint ? -1 : 1);
       }
    }
 }

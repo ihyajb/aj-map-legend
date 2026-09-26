@@ -14,7 +14,7 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
    var panelMC;
    var orderDirty = true;
    var displayed = false;
-   var listHeight = 512;
+   var listHeight = 536;
    var groupNames;
    function PauseMenuMapView()
    {
@@ -208,7 +208,9 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
       field.selectable = false;
       field.embedFonts = true;
       field.autoSize = false;
-      var format = new TextFormat("$Font2_cond_NOT_GAMERNAME",size,color);
+      var format = new TextFormat(name == "titleTF" ? "Figtree" : "$Font2_cond_NOT_GAMERNAME",size,color);
+      format.bold = name == "titleTF";
+      format.italic = false;
       field.setNewTextFormat(format);
       field.setTextFormat(format);
    }
@@ -220,11 +222,12 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
          this.panelMC._x = -300;
          this.panelMC.createEmptyMovieClip("scrollTrack",1);
          this.setText(this.panelMC,"titleTF",2,"LOCATIONS",10,3,280,29,20,1448991);
-         this.setText(this.panelMC,"positionTF",3,"",10,548,278,22,16,15725555);
+         this.setText(this.panelMC,"emptyTF",3,"No locations",10,42,278,22,16,15725555);
+         this.panelMC.emptyTF._visible = false;
       }
       this.panelMC.clear();
       this.drawRect(this.panelMC,0,0,300,32,16382711,100);
-      this.drawRect(this.panelMC,0,34,300,536,1055260,60);
+      this.drawRect(this.panelMC,0,34,300,this.listHeight,1055260,60);
       var i = 0;
       while(i < 16)
       {
@@ -280,9 +283,9 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
          this.headings[i]._visible = false;
          i++;
       }
+      this.panelMC.emptyTF._visible = this.order.length == 0;
       if(this.order.length == 0)
       {
-         this.setText(this.panelMC,"positionTF",3,"No locations",10,548,278,22,16,15725555);
          this.panelMC.scrollTrack.clear();
          this.highlightedItem = -1;
          return;
@@ -329,7 +332,6 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
          slot++;
          position++;
       }
-      this.setText(this.panelMC,"positionTF",3,selectedPosition + 1 + " / " + this.order.length,10,548,278,22,16,15725555);
       var track = this.panelMC.scrollTrack;
       track.clear();
       if(end - this.topEdge < this.order.length)

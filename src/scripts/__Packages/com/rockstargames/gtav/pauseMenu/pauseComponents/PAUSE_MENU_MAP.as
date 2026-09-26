@@ -44,11 +44,10 @@ class com.rockstargames.gtav.pauseMenu.pauseComponents.PAUSE_MENU_MAP extends co
       if(str != undefined && str != "")
       {
          var title = this.location.labelMC.locationTF;
-         // Use the same verified font as the legend. The fontmap alone does not
-         // guarantee a face (or its bold/italic variant) has loaded glyphs.
-         var format = new TextFormat("$Font2_cond_NOT_GAMERNAME",32,16777215);
+         // Figtree Bold glyphs are embedded in this movie by the build.
+         var format = new TextFormat("Figtree",32,16777215);
          format.align = "left";
-         format.bold = false;
+         format.bold = true;
          format.italic = false;
          title._x = title._y = 0;
          title._width = 760;
@@ -61,24 +60,6 @@ class com.rockstargames.gtav.pauseMenu.pauseComponents.PAUSE_MENU_MAP extends co
          title.setNewTextFormat(format);
          title.text = str.toUpperCase();
          title.setTextFormat(format);
-         // A small horizontal overdraw gives the available glyphs extra weight.
-         // Reuse one field, so area updates never accumulate display objects.
-         var label = this.location.labelMC;
-         if(label.weightTF == undefined)
-         {
-            label.createTextField("weightTF",100,0.75,0,760,52);
-         }
-         var weight = label.weightTF;
-         weight._x = title._x + 0.75;
-         weight._y = title._y;
-         weight.autoSize = "left";
-         weight.multiline = false;
-         weight.wordWrap = false;
-         weight.selectable = false;
-         weight.embedFonts = true;
-         weight.setNewTextFormat(format);
-         weight.text = title.text;
-         weight.setTextFormat(format);
          this.location._visible = true;
       }
       else

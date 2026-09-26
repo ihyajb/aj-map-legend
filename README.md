@@ -39,26 +39,26 @@ Fully restart FiveM and reconnect to unload the previously cached frontend movie
 *General map UI: the Locations panel with category headings and native location cycling.*
 
 - A fixed-width **Locations** panel with a white header, continuous dark rows, fine separators, and a white selected row.
-- Icons on the left; larger condensed labels alongside them. Long labels shrink slightly, then ellipsize to stay inside the panel.
+- Icons on the left; condensed GTA labels at size 18 alongside them. Long labels shrink to size 16, then ellipsize to stay inside the panel and clear the measured cycling controls.
 - The player entry is labeled **You** and sorted first, followed by the waypoint when present.
 - Non-selectable section headings: **Government**, **Jobs**, **Vehicles**, **Shops & Services**, **Activities**, **Properties**, **Other**.
 - Entries sort alphabetically within each section. Categories without entries are omitted. A category heading repeats at the top when scrolling into the middle of that section.
 - Grouped location counters remain on the right, with the native left/right cycling behavior.
-- A visual-order position count and thin scrollbar replace the native footer count.
-- A large white uppercase condensed area name with simulated extra weight at the top left, aligned with the screen's safe margins. GTA still supplies the live name as you browse the map.
+- A thin scrollbar indicates list position. There is no bottom position count; the list uses the full 536-unit body, including the former footer space. One category heading and 16 rows fit at once.
+- A large white uppercase area name in Figtree Bold at the top left, aligned with the screen's safe margins. GTA still supplies the live name as you browse the map.
 - The bottom-left distance ruler and its numbers are hidden, along with the old area-name background.
 
 This pass implements the grouped panel and player label from the reference, without a search field or checkbox controls. Existing native visibility callbacks remain available.
 
-The area title and distance ruler are part of the same `pause_menu_pages_map.gfx`; no additional streamed movie is needed. `PAUSE_MENU_PAGES_MAP.setDisplayConfig()` anchors the title to the top safe margin in fullscreen map mode. `PAUSE_MENU_MAP.SET_TITLE()` styles the live label with the shared `$Font2_cond_NOT_GAMERNAME` font at size 32 (Scaleform units), and both title and distance callbacks keep the ruler hidden. The title is the game's area name, not a hardcoded name or a blip category. The screenshots above focus on the Locations panel.
+The area title and distance ruler are part of the same `pause_menu_pages_map.gfx`; no additional streamed movie is needed. `PAUSE_MENU_PAGES_MAP.setDisplayConfig()` anchors the title to the top safe margin in fullscreen map mode. `PAUSE_MENU_MAP.SET_TITLE()` styles the live label with embedded Figtree Bold at size 32 (Scaleform units), and both title and distance callbacks keep the ruler hidden. The title is the game's area name, not a hardcoded name or a blip category. The screenshots above show the layout before the Figtree font change.
 
 ### Fonts
 
-The area title uses the same `$Font2_cond_NOT_GAMERNAME` font already rendering in the Locations panel. A second white text field offset horizontally by 0.75 Scaleform units adds weight without requesting an unavailable bold or italic face. This is simulated weight, not a separate bold font. Both fields receive the same live text and formatting, reuse their display objects, and hide together when the area name is empty. The Locations panel keeps its existing styling.
+The custom map UI uses the previous condensed GTA font, **`$Font2_cond_NOT_GAMERNAME`**, for location names, cycling counters, and the empty-state message. **Figtree Bold** is used for the Locations header, category headings, and area title. The heading font is embedded; body text uses GTA's shared font. Blip icons remain native artwork. Text baked into map imagery and other movies, such as GTA's separate instructional-button bar, is outside this movie.
 
-A font mapping alone does not prove that the map has loaded its glyphs. For example, `$HelveticaBLKI` exists in `common/data/ui/fontmap.xml`, but the installed `font_lib_efigs_pc.gfx` has no Helvetica face among its nine font definitions; using it here produced missing-glyph boxes. The condensed face used here is present in that library, with bold/italic flags explicitly disabled. Before switching fonts, verify the actual font library and style, then test rendering in-game.
+A font mapping alone does not prove that the map has loaded its glyphs. The build embeds Figtree Bold directly as a local GFx `DefineCompactedFont` and binds the area-name field to it. Dynamic panel headings select that same face; other existing text fields keep their native font bindings. Figtree Bold contains 407 printable BMP characters from the supplied static TTF, including accented Latin characters and punctuation. Players do not need to install the font, and no shared GTA font library is replaced. Figtree does not supply every writing system; translated/custom headings must use supported glyphs.
 
-To change this heading, edit the `TextFormat` in `PAUSE_MENU_MAP.SET_TITLE()`, update the corresponding font expectation in `test-layout.cjs`, and rebuild. Names must resolve to fonts available to the game. Installing a TTF on the server or putting it beside the GFX is not enough. A custom font requires embedding/exporting its glyphs in a Scaleform font library (or the movie) and making that font available to the map. This resource currently uses built-in fonts only; no custom-font loader is included. See [Scaleform font libraries and mapping](https://help.autodesk.com/cloudhelp/ENU/Scaleform-Help/scaleform_help/font/part_2.html).
+The static TTF and SIL Open Font License are in `src/fonts`; see its [provenance notes](src/fonts/README.md). `src/embed-font.js` converts glyph outlines using the installed JPEXS library. To use a different font, update the vendored file/license, embedding helper's family/style expectations, build paths and coverage checks, and the ActionScript text formats together. Rebuild and verify in-game. Simply renaming a `TextFormat.font` or placing a TTF beside the GFX does not embed it.
 
 ## Dynamic category tags
 
@@ -170,7 +170,7 @@ The player (`radar_centre`) and waypoint (`radar_waypoint`) are special entries 
 
 Untagged names continue to use `categoryFor()` keyword matching in `PauseMenuMapView.as`; unmatched entries remain in **Other**. Tags are presentation groups, not changes to Lua blip category IDs. Existing resource blip names have not been renamed automatically. The list updates when GTA supplies a new/updated slot; reopen the map if needed after changing a blip name.
 
-The renderer reapplies the shared font and text color after assigning each category heading and footer label so dynamically updated text retains its glyphs and formatting.
+The renderer reapplies the font and text color after assigning category headings and the empty-state label so dynamically updated text retains its glyphs and formatting. When no entries are supplied, **No locations** appears near the top of the list body.
 
 ## Updating names versus rebuilding the UI
 
@@ -210,6 +210,8 @@ The repository keeps one set of source files and one exported movie:
 ```text
 src/
   base/pause_menu_pages_map.gfx   # Original movie used as the build template
+  fonts/                         # Figtree Bold TTF, license, provenance
+  embed-font.js                  # Embed and verify local GFx font definitions
   scripts/__Packages/            # Editable ActionScript classes
 stream_enhanced/
   pause_menu_pages_map.gfx        # Built movie loaded by FiveM Enhanced
@@ -229,7 +231,7 @@ The five edited classes under `src/scripts` are:
 - `PauseMenuMapView.as`: group rules, display order, headings, scrolling and native-index mapping.
 - `PauseMenuMapModel.as`: native slot updates routed through the grouped view.
 
-Run `build.ps1` in PowerShell using the installed Java, JPEXS CLI, and Node. `-JpexsJar` supports a different JPEXS path. Only `stream_enhanced/pause_menu_pages_map.gfx` is streamed. This resource targets Enhanced.
+Run `build.ps1` in PowerShell using **Java 8 (with Nashorn)**, **JPEXS 23.0.1**, and Node. The font helper uses Java 8's built-in JavaScript engine to call the JPEXS font API; a newer Java without Nashorn will not run it. `-JpexsJar` supports a different JPEXS installation path. Only `stream_enhanced/pause_menu_pages_map.gfx` is streamed. This resource targets Enhanced.
 
 From the resource directory in PowerShell:
 
@@ -243,7 +245,7 @@ To use another JPEXS installation:
 .\build.ps1 -JpexsJar 'C:\Tools\FFDec\ffdec-cli.jar'
 ```
 
-The default JPEXS path is `C:\Program Files (x86)\FFDec\ffdec-cli.jar`; `java` and `node` must be available on PATH. A successful build replaces the streamed file only after its checks pass.
+The default JPEXS path is `C:\Program Files (x86)\FFDec\ffdec-cli.jar`; `java` and `node` must be available on PATH. The build first embeds the vendored fonts in a temporary copy of the base movie, then imports ActionScript, inspects the final font data and bytecode, and runs the behavioral checks. It is offline and does not install fonts. A successful build replaces the streamed file only after its checks pass.
 
 For developers, `parseLabel()` handles tags, `categoryFor()` defines fallback keywords, `groupFor()` merges/creates categories, and `rebuildOrder()` applies category precedence and sorting in `PauseMenuMapView.as`. The predefined names are initialized in the constructor and reset in `rebuildOrder()`; the rank calculation controls where custom categories and **Other** appear. Update all relevant pieces together when changing default category order. Ordinary tagged categories do not need these source edits.
 
@@ -255,7 +257,7 @@ JPEXS compiles the result and exports its bytecode. Build checks require explici
 
 JPEXS 23 can omit initializers in AS2 `for(var ...)` loops. Use explicitly initialized `while` loops for counted iteration. The build checks code recovered from the compiled movie because source-only tests cannot catch compiler omissions.
 
-Source and compiled-code checks also cover synchronized text/formatting in both area-title layers, reuse of the extra field, and hiding both layers for empty names. The current appearance has been confirmed in-game. Automated checks do not emulate GFx rendering: future UI changes still need checks of font rendering, long labels, navigation, cycling, map reopening, and safe-zone settings in-game.
+The font helper reopens its output and verifies Figtree Bold's codes, contour counts, style flags, and area-name binding. The final build independently checks that the 407-glyph face and printable ASCII outlines survive ActionScript compilation, while other native text fields retain their original GTA font bindings. Source and compiled-code tests cover Figtree headings with GTA body text, long row labels, resized counter hit regions, live area-name formatting, and empty titles. Both fonts have been seen in-game; the combined styling still needs a visual check. Automated checks do not emulate GFx rendering: check font appearance, accented labels, long labels, navigation, cycling, map reopening, and safe-zone settings in-game.
 
 ## Rollback
 
