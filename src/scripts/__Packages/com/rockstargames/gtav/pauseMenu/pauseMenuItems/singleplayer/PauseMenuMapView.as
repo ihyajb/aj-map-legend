@@ -68,12 +68,14 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
          return {category:undefined,label:original,isNew:false};
       }
       var untagged = label;
+      var nativePrefix = "";
       // GTA may prepend its own category, e.g. Garages: [VEHICLES] Hayes Depot.
       if(label.charAt(0) != "[")
       {
          var colon = label.indexOf(":");
          if(colon >= 0)
          {
+            nativePrefix = this.trimLabel(label.substring(0,colon));
             label = this.trimLabel(label.substring(colon + 1));
          }
       }
@@ -86,6 +88,10 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapV
             var name = this.trimLabel(label.substring(end + 1));
             if(category.length > 0 && category.indexOf("[") < 0 && name.length > 0)
             {
+               if(nativePrefix != "")
+               {
+                  name = nativePrefix + ": " + name;
+               }
                return {category:category,label:name,isNew:isNew};
             }
          }

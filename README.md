@@ -109,7 +109,9 @@ Set the blip's name in its existing resource/config to a string like:
 | `[FOOD] Burger Shot` | FOOD | Burger Shot |
 | `[MEDICAL] Pillbox Hospital` | MEDICAL | Pillbox Hospital |
 
-Any non-empty category tag except the reserved `[NEW]` marker creates a group automatically; new categories do **not** require editing or rebuilding the Scaleform. Tags override keyword matching. Names are trimmed and categories are case-insensitive: `[ vehicles ]` merges with `[VEHICLES]`. GTA prefixes such as `Garages: [VEHICLES] Hayes Depot` are supported too. The parser removes the prefix only from the displayed legend label; the original slot data and name remain untouched.
+Any non-empty category tag except the reserved `[NEW]` marker creates a group automatically; new categories do **not** require editing or rebuilding the Scaleform. Tags override keyword matching. Names are trimmed and categories are case-insensitive: `[ vehicles ]` merges with `[VEHICLES]`. GTA prefixes such as `Garages: [VEHICLES] Hayes Depot` are supported too. All native category prefixes, including `Garages:`, `Stores:`, and `Los Santos Customs:`, remain visible in the displayed label. Only the bracket category tag and `[NEW]` marker are removed. The original slot data and name remain untouched.
+
+Native categories can coexist with bracket groups. For example, `SetBlipCategory(blip, 100)` with `AddTextEntry('BLIP_CAT_100', 'Cool')` and the blip name `[TEST] Test Blip` supplies `Cool: [TEST] Test Blip` to the legend. It appears under **TEST** as **Cool: Test Blip**. The bracket tag selects our section; the native category prefix stays in the row. This applies equally to built-in and custom native categories. If a prefix is unwanted, change the native category assignment in the script that creates the blip.
 
 ### NEW badges
 
@@ -153,8 +155,9 @@ The legend has no registration export or central list of custom spots. To introd
 | `[VEHICLES] Hayes Depot` | VEHICLES → Hayes Depot |
 | `[vehicles] Hayes Depot` | Same VEHICLES group |
 | `[ vehicles ]  Hayes Depot` | Outer spaces trimmed; same group and label |
-| `Garages: [VEHICLES] Hayes Depot` | VEHICLES → Hayes Depot; GTA's leading category is removed too |
-| `Stores: [FOOD] Burger Shot` | FOOD → Burger Shot, overriding the `store` fallback match |
+| `Garages: [VEHICLES] Hayes Depot` | VEHICLES → Garages: Hayes Depot |
+| `Stores: [FOOD] Burger Shot` | FOOD → Stores: Burger Shot, overriding the `store` fallback match |
+| `Cool: [TEST] Test Blip` | TEST → Cool: Test Blip; custom native prefix is preserved |
 | `[MEDICAL] Hospital` | MEDICAL → Hospital, overriding the Government fallback |
 | `[VEHICLES]Hayes Depot` | Accepted; a space after `]` is recommended for readability |
 | `Hayes [VEHICLES] Depot` | Not a prefix; brackets stay in the name and keyword matching applies |
@@ -181,7 +184,7 @@ Existing predefined groups keep their order. Additional custom groups sort alpha
 8. Additional tagged categories, alphabetically—for example **BUSINESSES**, **FOOD**, **MEDICAL**.
 9. **OTHER**
 
-An explicit tag matching a predefined group joins that group: `[VEHICLES]` does not create a second Vehicles section. Only categories containing locations are drawn. Entries are sorted case-insensitively by the parsed name, with a valid tag removed; identical names retain native slot order. For untagged entries, GTA's category prefix can still be part of the sort key even where the row renderer hides a `Garages:` or `Los Santos Customs:` prefix.
+An explicit tag matching a predefined group joins that group: `[VEHICLES]` does not create a second Vehicles section. Only categories containing locations are drawn. Entries are sorted case-insensitively by the parsed name, with a valid tag removed; identical names retain native slot order. Native category prefixes remain part of both the displayed label and its sort key, with or without bracket tags.
 
 ## Automatic keyword matching
 

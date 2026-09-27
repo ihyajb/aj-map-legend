@@ -137,11 +137,20 @@ function labelFixture(iconID, label) {
   return { iconID, storeScope: view, __get__data: () => [label], get data() { return [label]; } };
 }
 assert.equal(displayLabel.call(labelFixture('radar_centre', '<C>PrivateUsername</C>')), 'You');
-assert.equal(displayLabel.call(labelFixture('radar_test', 'Garages: Sandy Docks Depot')), 'Sandy Docks Depot');
+for (const raw of ['Garages: Sandy Docks Depot', 'Stores: Burger Shot', 'Los Santos Customs: Vinewood']) {
+  assert.equal(displayLabel.call(labelFixture('radar_test', raw)), raw, 'Native prefixes stay visible without bracket tags');
+}
+assert.equal(displayLabel.call(labelFixture('radar_test', 'Cool: Test Blip')), 'Cool: Test Blip');
 const tags = [
   ['[VEHICLES] Hayes Depot', 'VEHICLES', 'Hayes Depot'],
-  ['Garages: [VEHICLES] Hayes Depot', 'VEHICLES', 'Hayes Depot'],
-  ['Stores: [FOOD] Burger Shot', 'FOOD', 'Burger Shot'],
+  ['Garages: [VEHICLES] Hayes Depot', 'VEHICLES', 'Garages: Hayes Depot'],
+  ['Stores: [FOOD] Burger Shot', 'FOOD', 'Stores: Burger Shot'],
+  ['Los Santos Customs: [VEHICLES] Vinewood', 'VEHICLES', 'Los Santos Customs: Vinewood'],
+  ['[VEHICLES] Garages: Hayes Depot', 'VEHICLES', 'Garages: Hayes Depot'],
+  ['Cool: [TEST] Test Blip', 'TEST', 'Cool: Test Blip'],
+  ['Cool: [TEST] Test Blip2', 'TEST', 'Cool: Test Blip2'],
+  ['<C>Cool</C>: [TEST] Test Blip', 'TEST', 'Cool: Test Blip'],
+  ['Cool:[TEST] Test Blip', 'TEST', 'Cool: Test Blip'],
   [' \t[ vehicles ]  Hayes Depot  ', 'VEHICLES', 'Hayes Depot'],
   ['<C>[MEDICAL] Pillbox</C>', 'MEDICAL', 'Pillbox'],
   ['[SHOPS & SERVICES] Bank', 'SHOPS & SERVICES', 'Bank']
@@ -158,7 +167,8 @@ for (const raw of ['[] Depot', '[  ] Depot', '[VEHICLES Depot', '[VEHICLES]', 'D
 for (const [raw, category, label] of [
   ['[CUSTOM2] [NEW] Test Blip', 'CUSTOM2', 'Test Blip'],
   ['[NEW] [CUSTOM2] Test Blip', 'CUSTOM2', 'Test Blip'],
-  ['Garages: [CUSTOM2] [new] Test Blip', 'CUSTOM2', 'Test Blip'],
+  ['Garages: [CUSTOM2] [new] Test Blip', 'CUSTOM2', 'Garages: Test Blip'],
+  ['Cool: [TEST] [NEW] Test Blip', 'TEST', 'Cool: Test Blip'],
   ['<C>[CUSTOM2] Test [NEW] Blip</C>', 'CUSTOM2', 'Test Blip'],
   ['[CUSTOM2] Test Blip [NEW]', 'CUSTOM2', 'Test Blip'],
   ['[NEW] [NEW] Bank', undefined, 'Bank'],

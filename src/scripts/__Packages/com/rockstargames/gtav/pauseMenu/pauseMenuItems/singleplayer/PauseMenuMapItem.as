@@ -64,15 +64,6 @@ class com.rockstargames.gtav.pauseMenu.pauseMenuItems.singleplayer.PauseMenuMapI
       {
          label = this.storeScope.parseLabel(label).label;
       }
-      var separator = label.indexOf(": ");
-      if(separator >= 0)
-      {
-         var prefix = label.substring(0,separator);
-         if(prefix == "Garages" || prefix == "Los Santos Customs")
-         {
-            label = label.substring(separator + 2);
-         }
-      }
       return label;
    }
    function updateDisplay()
